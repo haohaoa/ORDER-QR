@@ -1,0 +1,177 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================
+// ENUMS
+// ==========================
+enum UserRole {
+  customer
+  service
+  kitchen
+  manager
+  admin
+}
+enum UserStatus {
+  active
+  inactive
+  suspended
+  deleted
+}
+enum MenuItemStatus {
+  active
+  inactive
+  deleted
+}
+enum ContractType {
+  trial
+  monthly
+  yearly
+  permanent
+}
+
+enum TableStatus {
+  empty
+  occupied
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  ready
+  delivered
+  completed
+  cancelled
+}
+
+enum OrderItemStatus {
+  pending
+  preparing
+  done
+  cancelled
+}
+
+enum PaymentMethod {
+  cash
+  bank
+  momo
+  vnpay
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
+// ==========================
+// MODELS
+// ==========================
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  role         UserRole
+  phone        String?
+  email        String?      @unique
+  password     String
+  refreshToken String?
+  contractType ContractType @default(monthly)
+  address      String
+  createdAt    DateTime     @default(now())
+  menuItems    MenuItem[]
+  tables       Table[]
+  categories   Category[]
+  status       UserStatus   @default(active)
+}
+
+model Table {
+  id     String      @id @default(uuid())
+  name   String
+  qrCode String
+  userId String?
+  user   User?      @relation(fields: [userId], references: [id])
+  status TableStatus @default(empty)
+  orders Order[]
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  sortOrder Int
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id])
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(10, 0)
+  available   Boolean      @default(true)
+  categoryId  String?
+  userId      String
+  category    Category?    @relation(fields: [categoryId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  orderItems  OrderItem[]
+  images      ImageItem[]
+  options     OptionItem[]
+  status      MenuItemStatus @default(active)
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  tableId     String
+  status      OrderStatus @default(pending)
+  totalAmount Decimal
+  createdAt   DateTime    @default(now())
+  table       Table       @relation(fields: [tableId], references: [id])
+  items       OrderItem[]
+  payments    Payment[]
+}
+
+model OrderItem {
+  id         String          @id @default(uuid())
+  orderId    String
+  menuItemId String
+  name       String
+  price      Decimal
+  quantity   Int             @default(1)
+  note       String?
+  status     OrderItemStatus @default(pending)
+  order      Order           @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem        @relation(fields: [menuItemId], references: [id])
+}
+
+model Payment {
+  id      String        @id @default(uuid())
+  orderId String
+  method  PaymentMethod
+  amount  Decimal
+  status  PaymentStatus @default(pending)
+  paidAt  DateTime?
+  image   String?
+  order   Order         @relation(fields: [orderId], references: [id])
+}
+
+model ImageItem {
+  id     Int      @id @default(autoincrement())
+  menuId String
+  image  String
+  menu   MenuItem @relation(fields: [menuId], references: [id])
+}
+
+model OptionItem {
+  id       Int      @id @default(autoincrement())
+  menuId   String
+  name     String
+  required Boolean  @default(false)
+  menu     MenuItem @relation(fields: [menuId], references: [id])
+}
