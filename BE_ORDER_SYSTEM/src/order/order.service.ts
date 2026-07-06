@@ -9,9 +9,17 @@ export class OrderService {
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     const { tableId, ...data } = createOrderDto;
+    const table = await this.prisma.table.findUnique({ where: { id: tableId } });
+    if (!table) {
+      throw new NotFoundException(`Không tìm thấy bàn với ID ${tableId}`);
+    }
+
     return this.prisma.order.create({
       data: {
         ...data,
+        restaurant: {
+          connect: { id: table.restaurantId },
+        },
         table: {
           connect: { id: tableId },
         },
@@ -34,6 +42,9 @@ export class OrderService {
     return this.prisma.order.create({
       data: {
         ...data,
+        restaurant: {
+          connect: { id: table.restaurantId },
+        },
         table: {
           connect: { id: table.id },
         },
@@ -47,7 +58,6 @@ export class OrderService {
                 price: new Prisma.Decimal(item.price.toString()),
                 quantity: item.quantity,
                 note: item.note,
-                details: item.details,
                 status: item.status,
               })),
             }
@@ -157,7 +167,7 @@ export class OrderService {
     });
   }
 
-  async updateOrderItem(orderId: string, itemId: string, data: { quantity?: number; note?: string; details?: any }) {
+  async updateOrderItem(orderId: string, itemId: string, data: { quantity?: number; note?: string }) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${orderId}`);

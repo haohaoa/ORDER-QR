@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Store, Users, DollarSign, TrendingUp, Plus, Lock, Unlock, Edit, Search } from "lucide-react"
 import { mockStores, mockMenuItems } from "@/lib/mock-data"
 import { formatCurrency, formatDate } from "@/lib/format"
+import { getUserRoleLabel } from "@/lib/auth"
 import { AppHeader } from "@/components/app-header"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
 
@@ -21,6 +22,7 @@ export default function AdminPage() {
   const [stores, setStores] = useState(mockStores)
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddingStore, setIsAddingStore] = useState(false)
+  const [newAccountRole, setNewAccountRole] = useState("manager")
 
   const activeStores = stores.filter((s) => s.active).length
   const totalRevenue = 1823000000 + 987000000 + 456000000
@@ -49,6 +51,15 @@ export default function AdminPage() {
       store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       store.address.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  const accountRows = stores.map((store, index) => ({
+    id: store.ownerId,
+    name: `Chủ quán ${store.id}`,
+    email: `owner@${store.id}.com`,
+    storeName: store.name,
+    role: index === 0 ? "manager" : "service",
+    createdAt: new Date(2024, 0, 15),
+  }))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -286,10 +297,41 @@ export default function AdminPage() {
           <TabsContent value="accounts" className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Danh sách tài khoản chủ quán</h2>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Tạo tài khoản
-              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tạo tài khoản
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Thêm tài khoản mới</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Tên người dùng</Label>
+                      <Input placeholder="Nhập tên người dùng" className="bg-gray-50" />
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <Input type="email" placeholder="email@example.com" className="bg-gray-50" />
+                    </div>
+                    <div>
+                      <Label>Vai trò</Label>
+                      <select
+                        value={newAccountRole}
+                        onChange={(e) => setNewAccountRole(e.target.value)}
+                        className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm outline-none"
+                      >
+                        <option value="manager">Quản lý</option>
+                        <option value="service">Nhân viên</option>
+                      </select>
+                    </div>
+                    <Button className="w-full">Tạo tài khoản</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <Card className="border-gray-200 shadow-sm overflow-hidden">
@@ -300,26 +342,33 @@ export default function AdminPage() {
                       <TableHead className="font-semibold">ID</TableHead>
                       <TableHead className="font-semibold">Tên chủ quán</TableHead>
                       <TableHead className="font-semibold">Email</TableHead>
+                      <TableHead className="font-semibold">Vai trò</TableHead>
                       <TableHead className="font-semibold">Cửa hàng</TableHead>
                       <TableHead className="font-semibold">Ngày tạo</TableHead>
                       <TableHead className="text-right font-semibold">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stores.map((store) => (
-                      <TableRow key={store.ownerId}>
-                        <TableCell className="font-mono text-xs text-gray-600">{store.ownerId}</TableCell>
-                        <TableCell className="font-medium text-gray-900">Chủ quán {store.id}</TableCell>
-                        <TableCell className="text-gray-600">owner@{store.id}.com</TableCell>
-                        <TableCell className="text-gray-900">{store.name}</TableCell>
-                        <TableCell className="text-gray-600">{formatDate(new Date(2024, 0, 15))}</TableCell>
-                        <TableCell className="text-right">
-                          <Button size="icon" variant="ghost" className="h-8 w-8">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {accountRows.map((account) => {
+                      const roleInfo = getUserRoleLabel(account.role)
+                      return (
+                        <TableRow key={account.id}>
+                          <TableCell className="font-mono text-xs text-gray-600">{account.id}</TableCell>
+                          <TableCell className="font-medium text-gray-900">{account.name}</TableCell>
+                          <TableCell className="text-gray-600">{account.email}</TableCell>
+                          <TableCell>
+                            <Badge className={roleInfo.badgeClass}>{roleInfo.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-900">{account.storeName}</TableCell>
+                          <TableCell className="text-gray-600">{formatDate(account.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="icon" variant="ghost" className="h-8 w-8">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

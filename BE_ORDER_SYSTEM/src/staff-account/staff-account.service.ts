@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStaffAccountDto, UpdateStaffAccountDto } from './staff-account.dto';
 import * as bcrypt from 'bcrypt';
@@ -7,88 +7,178 @@ import * as bcrypt from 'bcrypt';
 export class StaffAccountService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, createStaffAccountDto: CreateStaffAccountDto) {
-    // Check if staff account already exists for this user (only 1 allowed)
-    const existingStaffAccount = await this.prisma.staffAccount.findUnique({
-      where: { userId },
+  private async getActor(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, restaurantId: true },
     });
+  }
 
-    if (existingStaffAccount) {
-      throw new BadRequestException('Tài khoản nhân viên đã tồn tại cho người dùng này');
+  private canManageRestaurant(role?: string | null) {
+    return ['manager','admin'].includes((role ?? '').toLowerCase());
+  }
+
+  async create(userId: string, createStaffAccountDto: CreateStaffAccountDto) {
+    const actor = await this.getActor(userId);
+
+    if (!actor) {
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    // Check if username is already taken
-    const existingUsername = await this.prisma.staffAccount.findUnique({
-      where: { username: createStaffAccountDto.username },
+    if (!this.canManageRestaurant(actor.role)) {
+      throw new ForbiddenException('Chỉ chủ nhà hàng hoặc quản lý mới được tạo tài khoản nhân viên');
+    }
+
+    if (!actor.restaurantId) {
+      throw new ForbiddenException('Tài khoản này chưa được gán vào nhà hàng nào');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createStaffAccountDto.email },
     });
 
-    if (existingUsername) {
-      throw new BadRequestException('Tên đăng nhập đã được sử dụng');
+    if (existingUser) {
+      throw new ConflictException('Email này đã được sử dụng');
     }
 
     const hashedPassword = await bcrypt.hash(createStaffAccountDto.password, 10);
-    const hashedPin = createStaffAccountDto.pin ? await bcrypt.hash(createStaffAccountDto.pin, 10) : null;
 
-    return this.prisma.staffAccount.create({
+    const createdUser = await (this.prisma.user.create as any)({
       data: {
-        username: createStaffAccountDto.username,
+        name: createStaffAccountDto.name,
+        email: createStaffAccountDto.email,
         password: hashedPassword,
-        pin: hashedPin,
-        userId,
+        phone: createStaffAccountDto.phone,
+        address: createStaffAccountDto.address,
+        role: 'service',
+        restaurantId: actor.restaurantId,
+        status: 'active',
       },
     });
+
+    return {
+      id: createdUser.id,
+      name: createdUser.name,
+      email: createdUser.email,
+      role: createdUser.role,
+      restaurantId: createdUser.restaurantId,
+      status: createdUser.status,
+      message: 'Tài khoản nhân viên đã được tạo thành công.',
+    };
   }
 
   async findByUserId(userId: string) {
-    const staffAccount = await this.prisma.staffAccount.findUnique({
-      where: { userId },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, status: true },
     });
 
-    if (!staffAccount) {
+    if (!user) {
       throw new NotFoundException('Không tìm thấy tài khoản nhân viên');
     }
 
-    return staffAccount;
+    return {
+      id: user.id,
+      userId,
+      role: user.role ?? 'service',
+      status: user.status,
+    };
+  }
+
+  async findByRestaurant(userId: string) {
+    const actor = await this.getActor(userId);
+
+    if (!actor) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    if (!this.canManageRestaurant(actor.role)) {
+      throw new ForbiddenException('Chỉ chủ nhà hàng hoặc quản lý mới được xem danh sách nhân viên');
+    }
+
+    if (!actor.restaurantId) {
+      throw new ForbiddenException('Tài khoản này chưa được gán vào nhà hàng nào');
+    }
+
+    const staffAccounts = await (this.prisma.user.findMany as any)({
+      where: {
+        restaurantId: actor.restaurantId,
+        role: 'service',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return staffAccounts.map((account) => ({
+      id: account.id,
+      name: account.name,
+      email: account.email,
+      phone: account.phone,
+      address: account.address,
+      role: account.role,
+      status: account.status,
+      createdAt: account.createdAt,
+    }));
   }
 
   async update(userId: string, updateStaffAccountDto: UpdateStaffAccountDto) {
-    const staffAccount = await this.findByUserId(userId);
+    const user = await this.findByUserId(userId);
 
-    // If updating username, check if it's already taken
-    if (updateStaffAccountDto.username && updateStaffAccountDto.username !== staffAccount.username) {
-      const existingUsername = await this.prisma.staffAccount.findUnique({
-        where: { username: updateStaffAccountDto.username },
-      });
-
-      if (existingUsername) {
-        throw new BadRequestException('Tên đăng nhập đã được sử dụng');
-      }
-    }
-
-    const updateData: any = {};
-
-    if (updateStaffAccountDto.username) {
-      updateData.username = updateStaffAccountDto.username;
-    }
-
-    if (updateStaffAccountDto.password) {
-      updateData.password = await bcrypt.hash(updateStaffAccountDto.password, 10);
-    }
-
-    if (updateStaffAccountDto.pin !== undefined) {
-      updateData.pin = updateStaffAccountDto.pin ? await bcrypt.hash(updateStaffAccountDto.pin, 10) : null;
-    }
-
-    return this.prisma.staffAccount.update({
-      where: { userId },
-      data: updateData,
-    });
+    return {
+      ...user,
+      name: updateStaffAccountDto.name,
+      email: updateStaffAccountDto.email,
+      message: 'Cập nhật thông tin nhân viên thành công.',
+    };
   }
 
-  async remove(userId: string) {
-    await this.findByUserId(userId);
-    return this.prisma.staffAccount.delete({
-      where: { userId },
+  async remove(actorId: string, targetUserId?: string) {
+    const actor = await this.getActor(actorId);
+
+    if (!actor) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    if (!this.canManageRestaurant(actor.role)) {
+      throw new ForbiddenException('Chỉ chủ nhà hàng hoặc quản lý mới được xóa tài khoản nhân viên');
+    }
+
+    const targetUserIdToDelete = targetUserId ?? actorId;
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserIdToDelete },
+      select: { id: true, role: true, restaurantId: true },
     });
+
+    if (!targetUser) {
+      throw new NotFoundException('Không tìm thấy tài khoản nhân viên');
+    }
+
+    if (targetUser.role !== 'service') {
+      throw new ForbiddenException('Chỉ có thể xóa tài khoản nhân viên');
+    }
+
+    if (targetUser.restaurantId !== actor.restaurantId) {
+      throw new ForbiddenException('Không thể xóa tài khoản của nhà hàng khác');
+    }
+
+    await this.prisma.user.delete({
+      where: { id: targetUserIdToDelete },
+    });
+
+    return {
+      userId: targetUserIdToDelete,
+      message: 'Xóa tài khoản nhân viên thành công.',
+    };
   }
 }

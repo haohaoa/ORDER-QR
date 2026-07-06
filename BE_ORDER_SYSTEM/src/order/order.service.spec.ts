@@ -7,14 +7,14 @@ describe('OrderService', () => {
   let prisma: {
     table: { findFirst: jest.Mock };
     order: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock; delete: jest.Mock };
-    orderItem: { findUnique: jest.Mock; update: jest.Mock; delete: jest.Mock };
+    orderItem: { findUnique: jest.Mock; findMany: jest.Mock; update: jest.Mock; delete: jest.Mock };
   };
 
   beforeEach(() => {
     prisma = {
       table: { findFirst: jest.fn() },
       order: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
-      orderItem: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+      orderItem: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn(), delete: jest.fn() },
     };
     service = new OrderService(prisma as unknown as PrismaService);
   });

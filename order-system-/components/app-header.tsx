@@ -1,5 +1,6 @@
 import type React from "react"
 import Image from "next/image"
+import { getAuthUser, getUserRoleLabel } from "@/lib/auth"
 
 interface AppHeaderProps {
   title?: string
@@ -8,6 +9,9 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
+  const currentUser = getAuthUser()
+  const roleInfo = getUserRoleLabel(currentUser?.role)
+
   return (
     <div className="sticky top-0 z-20 border-b bg-white shadow-sm">
       <div className="container mx-auto px-4 py-3">
@@ -26,7 +30,14 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
               )}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          <div className="flex items-center gap-2">
+            {currentUser && (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${roleInfo.badgeClass}`}>
+                {roleInfo.label}
+              </span>
+            )}
+            {actions && <div className="flex items-center gap-2">{actions}</div>}
+          </div>
         </div>
       </div>
     </div>

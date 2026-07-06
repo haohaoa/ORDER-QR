@@ -19,20 +19,26 @@ export class TableService {
     return `${normalizedName || 'table'}-${suffix}`;
   }
 
-  async create(createTableDto: CreateTableDto, userId?: string): Promise<Table> {
+  async create(createTableDto: CreateTableDto, restaurantId?: string): Promise<Table> {
+    if (!restaurantId) {
+      throw new NotFoundException('Không xác định được cửa hàng');
+    }
+
     const qrCode = createTableDto.qrCode?.trim() || this.buildQrCodeValue(createTableDto.name);
     return this.prisma.table.create({
       data: {
         name: createTableDto.name,
         qrCode,
         status: createTableDto.status ?? TableStatus.empty,
-        userId: userId || undefined,
+        restaurant: {
+          connect: { id: restaurantId },
+        },
       },
     });
   }
 
-  async findForUser(userId?: string, includeAll = false): Promise<Table[]> {
-    const where = includeAll || !userId ? {} : { userId };
+  async findForUser(restaurantId?: string, includeAll = false): Promise<Table[]> {
+    const where = includeAll || !restaurantId ? {} : { restaurantId };
 
     return this.prisma.table.findMany({
       where,

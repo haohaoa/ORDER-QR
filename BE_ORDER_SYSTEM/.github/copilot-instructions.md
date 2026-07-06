@@ -1,56 +1,195 @@
-# AI Coding Assistant Instructions for BE_ORDER_SYSTEM
+# Yêu cầu thiết kế lại Database cho hệ thống QR Order
 
-## Project Overview
-This is a NestJS backend application for an order management system, using Prisma ORM with MySQL database. The system manages users, tables, categories, menu items, orders, and payments for a restaurant or food service.
+## Bối cảnh
 
-## Architecture
-- **Framework**: NestJS with TypeScript
-- **Database**: MySQL via Prisma ORM
-- **Authentication**: bcrypt for password hashing
-- **Validation**: class-validator for DTOs
-- **Modules**: Modular structure with separate modules for each entity
+Tôi đang xây dựng một hệ thống Order bằng QR Code sử dụng NestJS + Prisma + MySQL.
 
-## Key Components
-- **PrismaService**: Global database service extending PrismaClient
-- **Modules**: User, Table, Category, MenuItem, Order, Payment, OptionItem, ImageItem (each with controller, service, DTOs)
-- **Entities**: Based on Prisma schema with relationships (User -> MenuItem, Table -> Order, etc.)
+Đối tượng hướng đến là các quán ăn, quán cà phê quy mô nhỏ đến vừa, nhưng kiến trúc phải đủ tốt để sau này triển khai dưới dạng SaaS cho nhiều quán khác nhau.
 
-## Development Workflow
-- **Database**: Use `npx prisma migrate dev` for schema changes, `npx prisma db seed` for seeding
-- **Build**: `npm run build` (NestJS CLI)
-- **Dev Server**: `npm run start:dev` (watch mode)
-- **Testing**: `npm run test` (unit), `npm run test:e2e` (end-to-end)
+Hiện tại database của tôi đang lấy **User (chủ quán)** làm trung tâm.
 
-## Conventions
-- **DTOs**: Use class-validator decorators (@IsString, @IsEnum, etc.)
-- **Services**: Handle business logic, database operations via PrismaService
-- **Controllers**: RESTful endpoints, delegate to services
-- **Modules**: Import PrismaModule globally, export services for cross-module use
-- **Naming**: Kebab-case for directories (menu-item), PascalCase for classes
-- **Relations**: Use Prisma connect syntax for relationships (e.g., `user: { connect: { id } }`)
+Ví dụ:
 
-## Common Patterns
-- **CRUD Operations**: Standard create/findAll/findOne/update/delete in all services
-- **Includes**: Always include related entities in find operations
-- **Error Handling**: Use NotFoundException for missing entities
-- **Password Hashing**: Use bcrypt in user service for create/update
-- **Enums**: Use Prisma-generated enums (UserRole, OrderStatus, etc.)
+* Table.userId
+* MenuItem.userId
+* Category.userId
 
-## Database Schema Highlights
-- Users have roles (customer, service, kitchen, manager, admin)
-- Tables have QR codes and status (empty/occupied)
-- MenuItems belong to categories and users, have images and options
-- Orders contain orderItems, linked to tables and payments
-- All entities use UUID primary keys
+Khi khách quét QR:
 
-## API Endpoints
-- `/users` - User management
-- `/tables` - Table management
-- `/categories` - Category management (ordered by sortOrder)
-- `/menu-items` - Menu item CRUD, with sub-endpoints for images/options
-- `/orders` - Order management, with sub-endpoints for order items
-- `/payments` - Payment management
-- `/option-items` - Menu item option management
-- `/image-items` - Menu item image management
+```
+QR Code
+→ Table
+→ userId (chủ quán)
+→ lấy Menu của user đó
+```
 
-When adding new features, follow the established module pattern and ensure proper validation and error handling.
+Thiết kế này hoạt động khi mỗi quán chỉ có một chủ.
+
+Tuy nhiên khi phát sinh nhiều nhân viên thì gặp vấn đề:
+
+* Không xác định được nhân viên thuộc quán nào.
+* Menu, Category, Table không nên thuộc nhân viên.
+* Nếu chủ quán thay đổi thì toàn bộ dữ liệu phải đổi theo.
+* User đang vừa là tài khoản đăng nhập vừa là thực thể đại diện cho quán, dẫn đến thiết kế không hợp lý.
+
+---
+
+## Mục tiêu mới
+
+Tôi muốn refactor toàn bộ hệ thống theo hướng **Restaurant (Quán)** là trung tâm dữ liệu.
+
+Restaurant sẽ là đơn vị sở hữu toàn bộ dữ liệu của quán.
+
+Ví dụ:
+
+```
+Restaurant
+│
+├── Users
+├── Tables
+├── Categories
+├── MenuItems
+├── Orders
+├── Payments
+```
+
+Mọi dữ liệu đều thuộc Restaurant, không thuộc User.
+
+User chỉ còn là tài khoản đăng nhập.
+
+Ví dụ:
+
+Restaurant A
+
+* Chủ quán
+* Nhân viên 1
+* Nhân viên 2
+
+đều có chung restaurantId.
+
+---
+
+## Nghiệp vụ
+
+### Chủ quán
+
+* Tạo tài khoản.
+* Tạo Restaurant.
+* Quản lý Menu.
+* Quản lý Bàn.
+* Quản lý Nhân viên.
+
+### Nhân viên
+
+* Đăng nhập.
+* Chỉ thao tác trên dữ liệu của Restaurant mình.
+* Không sở hữu Menu hay Table.
+
+### Khách
+
+Quét QR.
+
+Luồng:
+
+```
+QR
+↓
+Table
+↓
+Restaurant
+↓
+Menu
+```
+
+Không còn tìm thông qua User.
+
+---
+
+## Order
+
+Một bàn có thể phát sinh nhiều Order.
+
+Ví dụ:
+
+18:00
+
+Order #1
+
+18:15
+
+Order #2
+
+18:40
+
+Order #3
+
+Khi thanh toán:
+
+Lấy tất cả Order của bàn có trạng thái chưa hoàn thành.
+
+Tính tổng.
+
+Thanh toán một lần.
+
+Sau đó cập nhật tất cả Order thành completed.
+
+Table chuyển về empty.
+
+---
+
+## Nhân viên
+
+Tôi không cần hệ thống theo dõi bếp.
+
+Quy trình:
+
+Khách đặt
+
+↓
+
+Order = pending
+
+↓
+
+Nhân viên xác nhận
+
+↓
+
+In phiếu xuống bếp
+
+↓
+
+Bếp nấu (không dùng hệ thống)
+
+↓
+
+Nhân viên phục vụ
+
+↓
+
+Thanh toán
+
+Do đó không cần quản lý trạng thái từng món quá phức tạp như hệ thống POS lớn.
+
+---
+
+## Yêu cầu AI
+
+Hãy thiết kế lại toàn bộ Prisma Schema theo các tiêu chí sau:
+
+1. Restaurant là trung tâm của toàn bộ dữ liệu.
+2. User chỉ là tài khoản đăng nhập.
+3. Restaurant có nhiều User.
+4. Restaurant có nhiều Table.
+5. Restaurant có nhiều Category.
+6. Restaurant có nhiều MenuItem.
+7. Restaurant có nhiều Order.
+8. Quan hệ giữa các bảng phải chuẩn hóa, tránh dư thừa.
+9. Thiết kế phải dễ mở rộng cho nhiều quán (multi-tenant SaaS).
+10. Giữ nguyên những phần nghiệp vụ đang hợp lý như:
+
+    * Order
+    * OrderItem
+    * Payment
+11. Nếu phát hiện thiết kế chưa hợp lý, hãy giải thích lý do và đề xuất phương án tối ưu hơn.
+12. Ưu tiên kiến trúc sạch, dễ bảo trì, dễ mở rộng và đúng với thực tế triển khai cho nhiều quán.

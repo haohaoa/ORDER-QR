@@ -9,6 +9,12 @@ export interface MenuOption {
   required?: boolean
 }
 
+export interface MenuItemImage {
+  id?: number | string
+  menuId?: string
+  image: string
+}
+
 export interface MenuItem {
   id: string
   name: string
@@ -16,7 +22,7 @@ export interface MenuItem {
   price: number
   category: string | { id?: string; name?: string }
   image: string
-  images?: string[]
+  images?: Array<MenuItemImage | string>
   available: boolean
   createdAt?: string
   options?: MenuOption[]

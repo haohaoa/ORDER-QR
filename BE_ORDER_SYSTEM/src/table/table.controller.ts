@@ -4,27 +4,26 @@ import { CreateTableDto, UpdateTableDto } from './table.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { OwnerGuard } from '../auth/guards/owner.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Roles, UserRole } from '../auth/decorators/roles.decorator';
 import { Owner } from '../auth/decorators/owner.decorator';
-import { UserRole } from '@prisma/client';
 
 @Controller('tables')
 @UseGuards(JwtAuthGuard, RolesGuard, OwnerGuard)
-@Roles(UserRole.admin, UserRole.manager)
+@Roles(UserRole.admin, UserRole.manager, UserRole.service)
 export class TableController {
   constructor(private readonly tableService: TableService) {}
 
   @Post()
   create(@Body() createTableDto: CreateTableDto, @Request() req: any) {
-    const userId = req.user?.id;
-    return this.tableService.create(createTableDto, userId);
+    const restaurantId = req.user?.restaurantId;
+    return this.tableService.create(createTableDto, restaurantId);
   }
 
   @Get()
   findAll(@Request() req: any) {
-    const userId = req.user?.id;
+    const restaurantId = req.user?.restaurantId;
     const isAdmin = req.user?.role === UserRole.admin;
-    return this.tableService.findForUser(userId, isAdmin);
+    return this.tableService.findForUser(restaurantId, isAdmin);
   }
 
   @Get(':id')

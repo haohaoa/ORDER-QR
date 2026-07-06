@@ -7,25 +7,22 @@ import { Category } from '@prisma/client';
 export class CategoryService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCategoryDto: CreateCategoryDto, extractedUserId?: string): Promise<Category> {
-    const finalUserId = extractedUserId;
-    if (!finalUserId) {
-      throw new NotFoundException('Không xác định được chủ cửa hàng');
+  async create(createCategoryDto: CreateCategoryDto, extractedRestaurantId?: string): Promise<Category> {
+    if (!extractedRestaurantId) {
+      throw new NotFoundException('Không xác định được cửa hàng');
     }
 
     return this.prisma.category.create({
       data: {
         ...createCategoryDto,
-        user: {
-          connect: { id: finalUserId },
-        },
+        restaurantId: extractedRestaurantId,
       },
     });
   }
 
-  async findAll(userId?: string): Promise<Category[]> {
+  async findAll(restaurantId?: string): Promise<Category[]> {
     return this.prisma.category.findMany({
-      where: userId ? { userId } : undefined,
+      where: restaurantId ? { restaurantId } : undefined,
       include: {
         menuItems: true,
       },
@@ -67,13 +64,13 @@ export class CategoryService {
       where: { qrCode },
     });
 
-    if (!table || !table.userId) {
+    if (!table || !table.restaurantId) {
       return [];
     }
 
     return this.prisma.category.findMany({
       where: {
-        userId: table.userId,
+        restaurantId: table.restaurantId,
       },
       include: {
         menuItems: {

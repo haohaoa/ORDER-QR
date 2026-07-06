@@ -1,9 +1,12 @@
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateStaffAccountDto {
   @IsString()
-  @MinLength(3)
-  username: string;
+  @MinLength(2)
+  name: string;
+
+  @IsEmail()
+  email: string;
 
   @IsString()
   @MinLength(6)
@@ -11,15 +14,22 @@ export class CreateStaffAccountDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(4)
-  pin?: string;
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }
 
 export class UpdateStaffAccountDto {
   @IsOptional()
   @IsString()
-  @MinLength(3)
-  username?: string;
+  @MinLength(2)
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsOptional()
   @IsString()
@@ -28,6 +38,9 @@ export class UpdateStaffAccountDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(4)
-  pin?: string;
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

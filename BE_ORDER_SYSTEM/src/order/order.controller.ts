@@ -3,9 +3,8 @@ import { OrderService } from './order.service';
 import { CreateOrderDto, UpdateOrderDto, CreateOrderItemDto, CreateOrderByQrCodeDto } from './order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Roles, UserRole } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '@prisma/client';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -62,7 +61,7 @@ export class OrderController {
 
   @Public()
   @Patch(':id/items/:itemId')
-  updateOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { quantity?: number; note?: string; details?: any }) {
+  updateOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { quantity?: number; note?: string }) {
     return this.orderService.updateOrderItem(id, itemId, body);
   }
 

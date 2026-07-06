@@ -16,6 +16,8 @@ import { OrderModule } from './order/order.module';
 import { PaymentModule } from './payment/payment.module';
 import { OptionItemModule } from './option-item/option-item.module';
 import { ImageItemModule } from './image-item/image-item.module';
+import { RestaurantModule } from './restaurant/restaurant.module';
+import { StaffAccountModule } from './staff-account/staff-account.module';
 
 // Định nghĩa module chính của ứng dụng
 @Module({
@@ -31,6 +33,9 @@ import { ImageItemModule } from './image-item/image-item.module';
     AuthModule,
     // Module quản lý người dùng
     UserModule,
+    // Module quản lý nhà hàng và manager
+    RestaurantModule,
+    StaffAccountModule,
     // Module quản lý bàn ăn
     TableModule,
     // Module quản lý danh mục món ăn

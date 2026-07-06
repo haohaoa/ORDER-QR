@@ -9,9 +9,17 @@ export class PaymentService {
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
     const { orderId, ...data } = createPaymentDto;
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${orderId}`);
+    }
+
     return this.prisma.payment.create({
       data: {
         ...data,
+        restaurant: {
+          connect: { id: order.restaurantId },
+        },
         order: {
           connect: { id: orderId },
         },

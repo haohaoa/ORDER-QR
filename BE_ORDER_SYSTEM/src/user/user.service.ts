@@ -9,10 +9,11 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const { password, ...rest } = createUserDto;
+    const hashedPassword = await bcrypt.hash(password, 10);
     return this.prisma.user.create({
       data: {
-        ...createUserDto,
+        ...rest,
         password: hashedPassword,
       },
     });
@@ -33,12 +34,12 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    if (updateUserDto.password) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
-    }
+    const { password, ...rest } = updateUserDto;
+    const data = password ? { ...rest, password: await bcrypt.hash(password, 10) } : rest;
+
     return this.prisma.user.update({
       where: { id },
-      data: updateUserDto,
+      data,
     });
   }
 

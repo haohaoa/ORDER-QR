@@ -9,6 +9,19 @@
       "item": [
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) pm.collectionVariables.set('access_token', json.access_token);",
+                  "if (json.refresh_token) pm.collectionVariables.set('refresh_token', json.refresh_token);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -19,12 +32,33 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}"
+              "raw": "{\n  \"email\": \"owner@gmail.com\",\n  \"password\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
               "host": ["{{base_url}}"],
               "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
             }
           }
         }
@@ -41,15 +75,11 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\",\n  \"role\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Staff One\",\n  \"email\": \"staff1@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"manager\",\n  \"phone\": \"0900000001\",\n  \"address\": \"Hanoi\",\n  \"contractType\": \"fulltime\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/users",
@@ -114,7 +144,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\",\n  \"role\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Staff One Updated\",\n  \"phone\": \"0900000999\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/users/:id",
@@ -155,6 +185,66 @@
       ]
     },
     {
+      "name": "Staff Accounts",
+      "item": [
+        {
+          "name": "Create Staff Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhân viên B\",\n  \"email\": \"staff-b@example.com\",\n  \"password\": \"123456\",\n  \"phone\": \"0900000002\",\n  \"address\": \"Đà Nẵng\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/staff-accounts",
+              "host": ["{{base_url}}"],
+              "path": ["staff-accounts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restaurants",
+      "item": [
+        {
+          "name": "Create Restaurant with Manager",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhà hàng ABC\",\n  \"slug\": \"nha-hang-abc\",\n  \"address\": \"123 Đường A, Quận B\",\n  \"phone\": \"0909999999\",\n  \"email\": \"contact@abc.com\",\n  \"currency\": \"VND\",\n  \"description\": \"Nhà hàng test\",\n  \"manager\": {\n    \"name\": \"Manager One\",\n    \"email\": \"manager1@abc.com\",\n    \"password\": \"123456\",\n    \"phone\": \"0908888888\",\n    \"address\": \"Hà Nội\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurants",
+              "host": ["{{base_url}}"],
+              "path": ["restaurants"]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Tables",
       "item": [
         {
@@ -165,11 +255,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"qrCode\": \"\",\n  \"status\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Bàn 01\",\n  \"qrCode\": \"table-01\",\n  \"status\": \"empty\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/tables",
@@ -182,7 +276,12 @@
           "name": "Get All Tables",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/tables",
               "host": ["{{base_url}}"],
@@ -194,7 +293,12 @@
           "name": "Get Table by ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/tables/:id",
               "host": ["{{base_url}}"],
@@ -216,11 +320,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"qrCode\": \"\",\n  \"status\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Bàn 01 Updated\",\n  \"status\": \"occupied\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/tables/:id",
@@ -239,7 +347,12 @@
           "name": "Delete Table",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/tables/:id",
               "host": ["{{base_url}}"],
@@ -266,11 +379,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"sortOrder\": 0\n}"
+              "raw": "{\n  \"name\": \"Đồ uống\",\n  \"sortOrder\": 1\n}"
             },
             "url": {
               "raw": "{{base_url}}/categories",
@@ -280,10 +397,33 @@
           }
         },
         {
-          "name": "Get All Categories",
+          "name": "Get Category by QR",
           "request": {
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/by-qrcode/:qrCode",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "by-qrcode", ":qrCode"],
+              "variable": [
+                {
+                  "key": "qrCode",
+                  "value": "table-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/categories",
               "host": ["{{base_url}}"],
@@ -295,7 +435,12 @@
           "name": "Get Category by ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/categories/:id",
               "host": ["{{base_url}}"],
@@ -317,11 +462,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"sortOrder\": 0\n}"
+              "raw": "{\n  \"name\": \"Đồ uống Updated\",\n  \"sortOrder\": 2\n}"
             },
             "url": {
               "raw": "{{base_url}}/categories/:id",
@@ -340,7 +489,12 @@
           "name": "Delete Category",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/categories/:id",
               "host": ["{{base_url}}"],
@@ -375,7 +529,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"price\": 0,\n  \"categoryId\": \"\",\n  \"userId\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Cà phê\",\n  \"description\": \"Cà phê đậm vị\",\n  \"price\": 35000,\n  \"available\": true,\n  \"categoryId\": \"\",\n  \"options\": [\n    {\n      \"name\": \"Size\",\n      \"required\": true\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/menu-items",
@@ -385,10 +539,66 @@
           }
         },
         {
-          "name": "Get All Menu Items",
+          "name": "Upload Menu Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/menu-items/:id/upload",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", ":id", "upload"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Menu by QR",
           "request": {
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/menu-items/by-qrcode/:qrCode",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", "by-qrcode", ":qrCode"],
+              "variable": [
+                {
+                  "key": "qrCode",
+                  "value": "table-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Menu Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/menu-items",
               "host": ["{{base_url}}"],
@@ -400,7 +610,12 @@
           "name": "Get Menu Item by ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/menu-items/:id",
               "host": ["{{base_url}}"],
@@ -430,7 +645,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"price\": 0,\n  \"categoryId\": \"\",\n  \"userId\": \"\"\n}"
+              "raw": "{\n  \"name\": \"Cà phê updated\",\n  \"price\": 40000,\n  \"available\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}/menu-items/:id",
@@ -469,7 +684,7 @@
           }
         },
         {
-          "name": "Add Image to Menu Item",
+          "name": "Add Menu Image Record",
           "request": {
             "method": "POST",
             "header": [
@@ -484,7 +699,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"\"\n}"
+              "raw": "{\n  \"menuId\": \"\",\n  \"image\": \"sample.jpg\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/menu-items/:id/images",
@@ -500,7 +715,7 @@
           }
         },
         {
-          "name": "Add Option to Menu Item",
+          "name": "Add Menu Option Record",
           "request": {
             "method": "POST",
             "header": [
@@ -515,7 +730,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"price\": 0\n}"
+              "raw": "{\n  \"menuId\": \"\",\n  \"name\": \"Size\",\n  \"required\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}/menu-items/:id/options",
@@ -529,12 +744,66 @@
               ]
             }
           }
+        },
+        {
+          "name": "Delete Menu Image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/menu-items/:id/images/:imageId",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", ":id", "images", ":imageId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "imageId",
+                  "value": ""
+                }
+              ]
+            }
+          }
         }
       ]
     },
     {
       "name": "Orders",
       "item": [
+        {
+          "name": "Create Order by QR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"pending\",\n  \"totalAmount\": 70000,\n  \"items\": [\n    {\n      \"menuItemId\": \"\",\n      \"name\": \"Cà phê\",\n      \"price\": 35000,\n      \"quantity\": 2,\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/by-qrcode/:qrCode",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "by-qrcode", ":qrCode"],
+              "variable": [
+                {
+                  "key": "qrCode",
+                  "value": "table-01"
+                }
+              ]
+            }
+          }
+        },
         {
           "name": "Create Order",
           "request": {
@@ -551,7 +820,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tableId\": \"\",\n  \"userId\": \"\"\n}"
+              "raw": "{\n  \"tableId\": \"\",\n  \"status\": \"pending\",\n  \"totalAmount\": 70000\n}"
             },
             "url": {
               "raw": "{{base_url}}/orders",
@@ -574,6 +843,24 @@
               "raw": "{{base_url}}/orders",
               "host": ["{{base_url}}"],
               "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by QR",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/by-qrcode/:qrCode",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "by-qrcode", ":qrCode"],
+              "variable": [
+                {
+                  "key": "qrCode",
+                  "value": "table-01"
+                }
+              ]
             }
           }
         },
@@ -616,7 +903,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"\"\n}"
+              "raw": "{\n  \"status\": \"preparing\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/orders/:id",
@@ -670,7 +957,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"menuItemId\": \"\",\n  \"quantity\": 1,\n  \"note\": \"\"\n}"
+              "raw": "{\n  \"menuItemId\": \"\",\n  \"name\": \"Cà phê\",\n  \"price\": 35000,\n  \"quantity\": 1,\n  \"note\": \"ít đường\",\n  \"status\": \"pending\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/orders/:id/items",
@@ -679,6 +966,59 @@
               "variable": [
                 {
                   "key": "id",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Order Item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2,\n  \"note\": \"thêm sữa\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/:id/items/:itemId",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ":id", "items", ":itemId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "itemId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Order Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/orders/:id/items/:itemId",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ":id", "items", ":itemId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "itemId",
                   "value": ""
                 }
               ]
@@ -698,11 +1038,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderId\": \"\",\n  \"amount\": 0,\n  \"method\": \"\"\n}"
+              "raw": "{\n  \"orderId\": \"\",\n  \"method\": \"cash\",\n  \"amount\": 70000,\n  \"status\": \"pending\",\n  \"image\": \"payment.jpg\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/payments",
@@ -715,7 +1059,12 @@
           "name": "Get All Payments",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/payments",
               "host": ["{{base_url}}"],
@@ -727,7 +1076,12 @@
           "name": "Get Payment by ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/payments/:id",
               "host": ["{{base_url}}"],
@@ -749,11 +1103,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 0,\n  \"method\": \"\"\n}"
+              "raw": "{\n  \"status\": \"paid\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/payments/:id",
@@ -772,7 +1130,12 @@
           "name": "Delete Payment",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/payments/:id",
               "host": ["{{base_url}}"],
@@ -789,202 +1152,89 @@
       ]
     },
     {
-      "name": "Image Items",
+      "name": "Staff Accounts",
       "item": [
         {
-          "name": "Create Image Item",
+          "name": "Create Staff Account",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"\",\n  \"menuId\": \"\"\n}"
+              "raw": "{\n  \"email\": \"service1@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"service\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/image-items",
+              "raw": "{{base_url}}/staff-accounts",
               "host": ["{{base_url}}"],
-              "path": ["image-items"]
+              "path": ["staff-accounts"]
             }
           }
         },
         {
-          "name": "Get All Image Items",
+          "name": "Get Staff Accounts",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/image-items",
+              "raw": "{{base_url}}/staff-accounts",
               "host": ["{{base_url}}"],
-              "path": ["image-items"]
+              "path": ["staff-accounts"]
             }
           }
         },
         {
-          "name": "Get Image Item by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/image-items/:id",
-              "host": ["{{base_url}}"],
-              "path": ["image-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Image Item",
+          "name": "Update Staff Account",
           "request": {
             "method": "PATCH",
             "header": [
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"\",\n  \"menuId\": \"\"\n}"
+              "raw": "{\n  \"role\": \"service\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/image-items/:id",
+              "raw": "{{base_url}}/staff-accounts",
               "host": ["{{base_url}}"],
-              "path": ["image-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
+              "path": ["staff-accounts"]
             }
           }
         },
         {
-          "name": "Delete Image Item",
+          "name": "Delete Staff Account",
           "request": {
             "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/image-items/:id",
-              "host": ["{{base_url}}"],
-              "path": ["image-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Option Items",
-      "item": [
-        {
-          "name": "Create Option Item",
-          "request": {
-            "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"price\": 0,\n  \"menuId\": \"\"\n}"
-            },
             "url": {
-              "raw": "{{base_url}}/option-items",
+              "raw": "{{base_url}}/staff-accounts",
               "host": ["{{base_url}}"],
-              "path": ["option-items"]
-            }
-          }
-        },
-        {
-          "name": "Get All Option Items",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/option-items",
-              "host": ["{{base_url}}"],
-              "path": ["option-items"]
-            }
-          }
-        },
-        {
-          "name": "Get Option Item by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/option-items/:id",
-              "host": ["{{base_url}}"],
-              "path": ["option-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Option Item",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"price\": 0,\n  \"menuId\": \"\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/option-items/:id",
-              "host": ["{{base_url}}"],
-              "path": ["option-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Option Item",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/option-items/:id",
-              "host": ["{{base_url}}"],
-              "path": ["option-items", ":id"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": ""
-                }
-              ]
+              "path": ["staff-accounts"]
             }
           }
         }
@@ -998,6 +1248,10 @@
     },
     {
       "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
       "value": ""
     }
   ]

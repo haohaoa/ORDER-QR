@@ -3,8 +3,7 @@ import { CategoryService } from './category.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { Roles, UserRole } from '../auth/decorators/roles.decorator';
 import { Owner } from '../auth/decorators/owner.decorator';
 import { OwnerGuard } from '../auth/guards/owner.guard';
 import { Public } from '../auth/decorators/public.decorator';
@@ -23,13 +22,13 @@ export class CategoryController {
   @Post()
   @Roles(UserRole.admin, UserRole.manager)
   create(@Body() createCategoryDto: CreateCategoryDto, @Request() req: any) {
-    return this.categoryService.create(createCategoryDto, req.user?.id);
+    return this.categoryService.create(createCategoryDto, req.user?.restaurantId);
   }
 
   @Get()
   @Roles(UserRole.admin, UserRole.manager)
   findAll(@Request() req: any) {
-    return this.categoryService.findAll(req.user?.id);
+    return this.categoryService.findAll(req.user?.restaurantId);
   }
 
   @Get(':id')

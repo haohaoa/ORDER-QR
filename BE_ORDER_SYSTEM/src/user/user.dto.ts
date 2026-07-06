@@ -1,12 +1,20 @@
-import { IsString, IsOptional, IsEnum, IsEmail } from 'class-validator';
-import { UserRole, ContractType } from '@prisma/client';
+import { IsString, IsOptional, IsEmail } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
   name: string;
 
-  @IsEnum(UserRole)
-  role: UserRole;
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  contractType?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()
@@ -18,12 +26,6 @@ export class CreateUserDto {
 
   @IsString()
   password: string;
-
-  @IsEnum(ContractType)
-  contractType: ContractType;
-
-  @IsString()
-  address: string;
 }
 
 export class UpdateUserDto {
@@ -32,8 +34,16 @@ export class UpdateUserDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  contractType?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()
@@ -46,12 +56,4 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   password?: string;
-
-  @IsOptional()
-  @IsEnum(ContractType)
-  contractType?: ContractType;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
 }

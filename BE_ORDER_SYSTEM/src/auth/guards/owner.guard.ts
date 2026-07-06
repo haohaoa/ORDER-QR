@@ -1,4 +1,3 @@
-// owner.guard.ts
 import {
   CanActivate,
   ExecutionContext,
@@ -8,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { OwnerService } from '../services/owner.service';
 import { OWNER_KEY, OwnerMeta } from '../decorators/owner.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../decorators/roles.decorator';
 
 @Injectable()
 export class OwnerGuard implements CanActivate {
@@ -32,10 +31,10 @@ export class OwnerGuard implements CanActivate {
       throw new ForbiddenException('Bạn cần đăng nhập để thực hiện hành động này');
     }
 
-    if (user.role === UserRole.admin) return true;
+    if (user.role === UserRole.admin || user.role === 'owner') return true;
 
     const param = meta.param ?? 'id';
-    const ownerField = meta.ownerField ?? 'userId';
+    const ownerField = meta.ownerField ?? 'restaurantId';
     const resourceId = req.params[param];
 
     const isOwner = await this.ownerService.isOwner(

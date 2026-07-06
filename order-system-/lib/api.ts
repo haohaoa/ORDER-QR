@@ -213,6 +213,42 @@ export async function deleteMenuItemImage(menuId: string, imageId: number) {
   return res.json()
 }
 
+export async function getStaffAccounts() {
+  const res = await fetch(`${API_BASE_URL}/staff-accounts`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Get staff accounts failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function createStaffAccount(payload: { name: string; email: string; password: string; phone?: string; address?: string }) {
+  const res = await fetch(`${API_BASE_URL}/staff-accounts`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Create staff account failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function deleteStaffAccount(id: string) {
+  const res = await fetch(`${API_BASE_URL}/staff-accounts/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Delete staff account failed: ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function getTables() {
   const res = await fetch(`${API_BASE_URL}/tables`, {
     headers: getAuthHeaders(),

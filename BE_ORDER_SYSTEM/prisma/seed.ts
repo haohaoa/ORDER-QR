@@ -1,20 +1,17 @@
-import { PrismaClient, Category } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-// ===== HELPER =====
 function randomBool() {
   return Math.random() < 0.5;
 }
 
-// Giá tiền làm tròn theo 10.000 VNĐ
 function randomPrice(min = 50000, max = 200000) {
   const value = Math.floor(Math.random() * (max - min)) + min;
   return Math.round(value / 10000) * 10000;
 }
 
-// ===== DANH SÁCH 40 TÊN MÓN =====
 const DISH_NAMES = [
   "Phở bò tái",
   "Phở gà",
@@ -36,8 +33,6 @@ const DISH_NAMES = [
   "Nem rán",
   "Chả giò",
   "Bánh xèo",
-
-  // ===== 20 MÓN THÊM =====
   "Lẩu thái hải sản",
   "Lẩu bò nhúng dấm",
   "Cá kho tộ",
@@ -63,78 +58,84 @@ const DISH_NAMES = [
 async function main() {
   console.log("🌱 Seeding data...");
 
-  // =====================
-  // 1 USER (ADMIN)
-  // =====================
   const hashedPassword = await bcrypt.hash("123456", 10);
 
-  const user = await prisma.user.create({
+  const restaurant = await prisma.restaurant.create({
     data: {
-      name: "Admin User",
-      role: "admin",
-      email: "admin@gmail.com",
-      password: hashedPassword,
-      contractType: "monthly",
+      name: "Demo Restaurant",
+      slug: "demo-restaurant",
       address: "123 Main Street",
       phone: "0123456789",
+      email: "restaurant@example.com",
+      currency: "VND",
+      description: "Restaurant seed data",
     },
   });
 
-  // =====================
-  // 4 CATEGORIES
-  // =====================
-  const categories: Category[] = [];
+  await prisma.user.create({
+    data: {
+      name: "Owner User",
+      email: "owner@gmail.com",
+      password: hashedPassword,
+      phone: "0123456789",
+      role: "owner",
+      restaurantId: restaurant.id,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: "Admin User",
+      email: "admin@gmail.com",
+      password: hashedPassword,
+      phone: "0123456789",
+      role: "admin",
+      restaurantId: restaurant.id,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: "Manager User",
+      email: "manager@gmail.com",
+      password: hashedPassword,
+      phone: "0987654321",
+      role: "manager",
+      restaurantId: restaurant.id,
+    },
+  });
+
+  const categories = [] as Array<{ id: string; name: string }>;
   for (let i = 1; i <= 4; i++) {
     const category = await prisma.category.create({
       data: {
+        restaurantId: restaurant.id,
         name: `Category ${i}`,
         sortOrder: i,
-        user: {
-          connect: { id: user.id },
-        },
       },
     });
     categories.push(category);
   }
 
-  // =====================
-  // MENU ITEMS (40 MÓN)
-  // =====================
   for (let i = 0; i < DISH_NAMES.length; i++) {
-    const category =
-      categories[Math.floor(Math.random() * categories.length)];
+    const category = categories[Math.floor(Math.random() * categories.length)];
 
     await prisma.menuItem.create({
       data: {
+        restaurantId: restaurant.id,
+        categoryId: category.id,
         name: DISH_NAMES[i],
         description: `Món ${DISH_NAMES[i]} thơm ngon, chế biến trong ngày`,
         price: randomPrice(),
         available: true,
-
-        user: {
-          connect: { id: user.id },
-        },
-
-        category: {
-          connect: { id: category.id },
-        },
-
-        // ===== IMAGES =====
-        // images: {
-        //   create: [
-        //     { image: `anh(${i + 1}).jpg` },
-        //     { image: `anh(${i + 2}).jpg` },
-        //     { image: `anh(${i + 3}).jpg` },
-        //   ],
-        // },
+        status: "active",
         images: {
-            create: [
-              { image: `anh(1).jpg` },
-              { image: `anh(2).jpg` },
-              { image: `anh(3).jpg` },
-            ],
-          },
-        // ===== OPTIONS =====
+          create: [
+            { image: `anh(1).jpg` },
+            { image: `anh(2).jpg` },
+            { image: `anh(3).jpg` },
+          ],
+        },
         options: {
           create: Array.from({
             length: Math.floor(Math.random() * 3) + 1,
@@ -147,18 +148,13 @@ async function main() {
     });
   }
 
-  // =====================
-  // 10 TABLES
-  // =====================
   for (let i = 1; i <= 10; i++) {
     await prisma.table.create({
       data: {
+        restaurantId: restaurant.id,
         name: `Table ${i}`,
         qrCode: `QR-${i}-${Math.floor(Math.random() * 1000)}`,
         status: "empty",
-        user: {
-          connect: { id: user.id },
-        },
       },
     });
   }

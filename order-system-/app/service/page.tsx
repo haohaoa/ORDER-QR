@@ -27,6 +27,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { AppNavigation } from "@/components/app-navigation-service"
+import { getTables } from "@/lib/api"
 import {
   Check,
   Users,
@@ -69,8 +70,14 @@ type PendingOrder = {
   createdAt: number
 }
  
-// ---------- Thực đơn nhanh dùng để thêm món ----------
- 
+type ApiTable = {
+  id: string
+  name?: string
+  number?: string
+  status?: string
+  qrCode?: string
+}
+
 const QUICK_MENU: QuickMenuItem[] = [
   { name: "Cà phê sữa", price: 25000 },
   { name: "Cà phê đen", price: 20000 },
@@ -81,8 +88,6 @@ const QUICK_MENU: QuickMenuItem[] = [
   { name: "Cơm gà", price: 40000 },
   { name: "Bánh mì", price: 20000 },
 ]
- 
-// ---------- Dữ liệu mẫu (thay bằng dữ liệu thật) ----------
  
 function randomMenuItems(): MenuItem[] {
   const count = Math.floor(Math.random() * 3) + 1
@@ -95,16 +100,14 @@ function randomMenuItems(): MenuItem[] {
   }))
 }
  
-const MOCK_TABLES: TableInfo[] = Array.from({ length: 10 }).map((_, i) => {
-  const n = i + 1
-  const occupied = [1, 2, 4, 7, 9].includes(n)
+function mapTableFromApi(table: ApiTable): TableInfo {
   return {
-    id: `B${String(n).padStart(2, "0")}`,
-    name: `${n}`,
-    occupied,
-    items: occupied ? randomMenuItems() : [],
+    id: table.id,
+    name: table.name ?? table.number ?? "Bàn",
+    occupied: (table.status ?? "empty") === "occupied",
+    items: [],
   }
-})
+}
  
 // ---------- Tiện ích ----------
  
@@ -130,9 +133,11 @@ function timeAgo(timestamp: number) {
 // ---------- Component chính ----------
  
 export default function TablesPage() {
-  const [tables, setTables] = useState<TableInfo[]>(MOCK_TABLES)
+  const [tables, setTables] = useState<TableInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showQuickMenu, setShowQuickMenu] = useState(false)
+  const [isLoadingTables, setIsLoadingTables] = useState(true)
+  const [tableError, setTableError] = useState<string | null>(null)
  
   // ----- Thông báo gọi món -----
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([])
@@ -149,6 +154,40 @@ export default function TablesPage() {
     () => pendingOrders.find((o) => o.id === reviewId) ?? null,
     [pendingOrders, reviewId]
   )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadTables() {
+      try {
+        setIsLoadingTables(true)
+        setTableError(null)
+        const data = await getTables()
+        if (!isMounted) return
+
+        const nextTables = Array.isArray(data)
+          ? data.map((table: ApiTable) => mapTableFromApi(table))
+          : []
+
+        setTables(nextTables)
+      } catch (error) {
+        if (!isMounted) return
+        console.error("Failed to load tables", error)
+        setTableError("Không thể tải danh sách bàn từ hệ thống")
+        setTables([])
+      } finally {
+        if (isMounted) {
+          setIsLoadingTables(false)
+        }
+      }
+    }
+
+    loadTables()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
  
   // ----- Bàn: mở / đóng -----
  
@@ -407,21 +446,34 @@ export default function TablesPage() {
         </div>
  
         {/* Tables Grid */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-          {tables.map((table) => {
-            const count = itemCountOf(table.items)
-            const hasPending = pendingOrders.some((o) => o.tableId === table.id)
-            return (
-              <button
-                key={table.id}
-                type="button"
-                onClick={() => openTable(table.id)}
-                className={`relative rounded-xl border-2 p-5 text-center transition-all active:scale-95 sm:p-6 ${
-                  table.occupied
-                    ? "border-amber-400 bg-amber-50 shadow-md"
-                    : "border-emerald-300 bg-emerald-50 shadow-sm hover:shadow-md"
-                }`}
-              >
+        {isLoadingTables ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
+            Đang tải danh sách bàn...
+          </div>
+        ) : tableError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-8 text-center text-sm text-red-600">
+            {tableError}
+          </div>
+        ) : tables.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
+            Chưa có bàn nào trong hệ thống.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+            {tables.map((table) => {
+              const count = itemCountOf(table.items)
+              const hasPending = pendingOrders.some((o) => o.tableId === table.id)
+              return (
+                <button
+                  key={table.id}
+                  type="button"
+                  onClick={() => openTable(table.id)}
+                  className={`relative rounded-xl border-2 p-5 text-center transition-all active:scale-95 sm:p-6 ${
+                    table.occupied
+                      ? "border-amber-400 bg-amber-50 shadow-md"
+                      : "border-emerald-300 bg-emerald-50 shadow-sm hover:shadow-md"
+                  }`}
+                >
                 {/* Status Dot */}
                 <div
                   className={`absolute right-2 top-2 h-3 w-3 rounded-full ${
@@ -436,39 +488,40 @@ export default function TablesPage() {
                   </div>
                 )}
  
-                {/* Table Name */}
-                <p className="mb-3 text-3xl font-bold text-gray-900 sm:text-4xl">
-                  Bàn {table.name}
-                </p>
+                  {/* Table Name */}
+                  <p className="mb-3 text-3xl font-bold text-gray-900 sm:text-4xl">
+                    Bàn {table.name}
+                  </p>
  
-                {/* Status Badge */}
-                <Badge
-                  className={`mb-3 px-2 py-1 text-xs font-semibold ${
-                    table.occupied
-                      ? "bg-amber-500 text-white"
-                      : "bg-emerald-500 text-white"
-                  }`}
-                >
-                  {table.occupied ? "Có khách" : "Trống"}
-                </Badge>
+                  {/* Status Badge */}
+                  <Badge
+                    className={`mb-3 px-2 py-1 text-xs font-semibold ${
+                      table.occupied
+                        ? "bg-amber-500 text-white"
+                        : "bg-emerald-500 text-white"
+                    }`}
+                  >
+                    {table.occupied ? "Có khách" : "Trống"}
+                  </Badge>
  
-                {/* Item Count */}
-                {table.occupied && (
-                  <div className="mt-3 rounded-md bg-white bg-opacity-60 p-2">
-                    <p className="text-xs font-medium text-gray-600">
-                      {count} {count === 1 ? "món" : "món"}
-                    </p>
-                  </div>
-                )}
+                  {/* Item Count */}
+                  {table.occupied && (
+                    <div className="mt-3 rounded-md bg-white bg-opacity-60 p-2">
+                      <p className="text-xs font-medium text-gray-600">
+                        {count} {count === 1 ? "món" : "món"}
+                      </p>
+                    </div>
+                  )}
  
-                {/* Checkmark for empty tables */}
-                {!table.occupied && (
-                  <Check className="mx-auto mt-2 h-6 w-6 text-emerald-500 opacity-70" />
-                )}
-              </button>
-            )
-          })}
-        </div>
+                  {/* Checkmark for empty tables */}
+                  {!table.occupied && (
+                    <Check className="mx-auto mt-2 h-6 w-6 text-emerald-500 opacity-70" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
  
       {/* ---------- Bottom Sheet: chi tiết bàn ---------- */}

@@ -6,8 +6,7 @@ import { MenuItemService } from './menu-item.service';
 import { CreateMenuItemDto, UpdateMenuItemDto, CreateImageItemDto, CreateOptionItemDto } from './menu-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { Roles, UserRole } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Owner } from '../auth/decorators/owner.decorator';
 import { OwnerGuard } from '../auth/guards/owner.guard';
@@ -25,8 +24,8 @@ export class MenuItemController {
   @Post()
   @Roles(UserRole.admin, UserRole.manager)
   create(@Body() createMenuItemDto: CreateMenuItemDto, @Request() req: any) {
-    const userId = req.user?.id;
-    return this.menuItemService.create(createMenuItemDto, userId);
+    const restaurantId = req.user?.restaurantId;
+    return this.menuItemService.create(createMenuItemDto, restaurantId);
   }
 
   @Post(':id/upload')
@@ -50,8 +49,8 @@ export class MenuItemController {
   @Get()
   @Roles(UserRole.admin, UserRole.manager)
   findAll(@Request() req: any, @Query('tableId') tableId?: string) {
-    const userId = req.user?.id;
-    return this.menuItemService.findForUser(userId, tableId);
+    const restaurantId = req.user?.restaurantId;
+    return this.menuItemService.findForUser(restaurantId, tableId);
   }
 
   @Get(':id')

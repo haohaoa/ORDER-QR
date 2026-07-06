@@ -30,9 +30,6 @@ export class CreateOrderItemInputDto {
   @IsString()
   note?: string;
 
-  @IsOptional()
-  details?: any;
-
   @IsEnum(OrderItemStatus)
   status: OrderItemStatus;
 }

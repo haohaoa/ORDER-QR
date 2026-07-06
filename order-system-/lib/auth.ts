@@ -11,22 +11,30 @@ function parseJwt(token: string | null) {
   }
 }
 
+function hasBrowserStorage() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+}
+
 export function setAuthToken(token: string, user: any) {
-  localStorage.setItem('access_token', token)
-  localStorage.setItem('auth_user', JSON.stringify(user))
+  if (!hasBrowserStorage()) return
+  window.localStorage.setItem('access_token', token)
+  window.localStorage.setItem('auth_user', JSON.stringify(user))
 }
 
 export function clearAuth() {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('auth_user')
+  if (!hasBrowserStorage()) return
+  window.localStorage.removeItem('access_token')
+  window.localStorage.removeItem('auth_user')
 }
 
 export function getAuthToken() {
-  return localStorage.getItem('access_token')
+  if (!hasBrowserStorage()) return null
+  return window.localStorage.getItem('access_token')
 }
 
 export function getAuthUser() {
-  const raw = localStorage.getItem('auth_user')
+  if (!hasBrowserStorage()) return null
+  const raw = window.localStorage.getItem('auth_user')
   return raw ? JSON.parse(raw) : null
 }
 
@@ -57,4 +65,22 @@ export async function login(email: string, password: string) {
 export function getRole() {
   const user = getAuthUser()
   return user?.role
+}
+
+export function getUserRoleLabel(role?: string | null) {
+  const normalizedRole = role?.toString().toLowerCase()
+
+  if (['admin', 'manager'].includes(normalizedRole || '')) {
+    return { label: 'Quản lý', badgeClass: 'bg-emerald-100 text-emerald-700' }
+  }
+
+  if (['service', 'kitchen', 'staff'].includes(normalizedRole || '')) {
+    return { label: 'Nhân viên', badgeClass: 'bg-blue-100 text-blue-700' }
+  }
+
+  if (normalizedRole === 'customer') {
+    return { label: 'Khách hàng', badgeClass: 'bg-slate-100 text-slate-700' }
+  }
+
+  return { label: 'Chưa phân vai trò', badgeClass: 'bg-gray-100 text-gray-700' }
 }

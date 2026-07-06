@@ -27,16 +27,18 @@ export class MenuItemService {
     }
   }
 
-  async create(createMenuItemDto: CreateMenuItemDto, extractedUserId?: string): Promise<MenuItem> {
-    const { userId, categoryId, options, ...data } = createMenuItemDto;
-    // Use extracted userId from JWT if provided, otherwise use the one from DTO
-    const finalUserId = extractedUserId || userId;
+  async create(createMenuItemDto: CreateMenuItemDto, extractedRestaurantId?: string): Promise<MenuItem> {
+    const { categoryId, options, userId: _userId, ...data } = createMenuItemDto;
+
+    if (!extractedRestaurantId) {
+      throw new ForbiddenException('Không xác định được cửa hàng');
+    }
 
     if (categoryId) {
       const category = await this.prisma.category.findFirst({
         where: {
           id: categoryId,
-          OR: [{ userId: finalUserId }, { userId: null }],
+          restaurantId: extractedRestaurantId,
         },
       });
 
@@ -48,15 +50,14 @@ export class MenuItemService {
     const createdItem = await this.prisma.menuItem.create({
       data: {
         ...data,
-        user: {
-          connect: { id: finalUserId },
+        restaurant: {
+          connect: { id: extractedRestaurantId },
         },
         category: categoryId ? {
           connect: { id: categoryId },
         } : undefined,
       },
       include: {
-        user: true,
         category: true,
         images: true,
         options: true,
@@ -67,17 +68,10 @@ export class MenuItemService {
     return this.findOne(createdItem.id);
   }
 
-  async findAll(): Promise<MenuItem[]> {
+  async findAll(restaurantId?: string): Promise<MenuItem[]> {
     return this.prisma.menuItem.findMany({
-      where: { status: { not: 'deleted' } },
+      where: { status: { not: 'deleted' }, ...(restaurantId ? { restaurantId } : {}) },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-          },
-        },
         category: true,
         images: true,
         options: true,
@@ -85,29 +79,21 @@ export class MenuItemService {
     });
   }
 
-  // Find menu items for a specific user (manager/owner), or scope them by table ownership
-  async findForUser(userId?: string, tableId?: string): Promise<MenuItem[]> {
+  async findForUser(restaurantId?: string, tableId?: string): Promise<MenuItem[]> {
     const where: any = { status: { not: 'deleted' } };
 
     if (tableId) {
       const table = await this.prisma.table.findUnique({ where: { id: tableId } });
-      if (table?.userId) {
-        where.userId = table.userId;
+      if (table?.restaurantId) {
+        where.restaurantId = table.restaurantId;
       }
-    } else if (userId) {
-      where.userId = userId;
+    } else if (restaurantId) {
+      where.restaurantId = restaurantId;
     }
 
     return this.prisma.menuItem.findMany({
       where,
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-          },
-        },
         category: true,
         images: true,
         options: true,
@@ -115,32 +101,24 @@ export class MenuItemService {
     });
   }
 
-  // If tableId provided, return menu items belonging to same user (store) as the table
   async findForTable(tableId?: string): Promise<MenuItem[]> {
-    const where: any = { status: { not: 'deleted' } }
+    const where: any = { status: { not: 'deleted' } };
 
     if (tableId) {
-      const table = await this.prisma.table.findUnique({ where: { id: tableId } })
-      if (table && table.userId) {
-        where.userId = table.userId
+      const table = await this.prisma.table.findUnique({ where: { id: tableId } });
+      if (table && table.restaurantId) {
+        where.restaurantId = table.restaurantId;
       }
     }
 
     return this.prisma.menuItem.findMany({
       where,
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-          },
-        },
         category: true,
         images: true,
         options: true,
       },
-    })
+    });
   }
 
 
@@ -148,7 +126,6 @@ export class MenuItemService {
     const menuItem = await this.prisma.menuItem.findUnique({
       where: { id },
       include: {
-        user: true,
         category: true,
         images: true,
         options: true,
@@ -164,11 +141,11 @@ export class MenuItemService {
     const { categoryId, options, ...data } = updateMenuItemDto;
 
     if (categoryId) {
-      const currentMenuItem = await this.prisma.menuItem.findUnique({ where: { id }, select: { userId: true } });
+      const currentMenuItem = await this.prisma.menuItem.findUnique({ where: { id }, select: { restaurantId: true } });
       const category = await this.prisma.category.findFirst({
         where: {
           id: categoryId,
-          OR: [{ userId: currentMenuItem?.userId }, { userId: null }],
+          restaurantId: currentMenuItem?.restaurantId,
         },
       });
 
@@ -227,25 +204,19 @@ export class MenuItemService {
       where: { qrCode },
     });
 
-    if (!table || !table.userId) {
+    if (!table || !table.restaurantId) {
       return [];
     }
 
     return this.prisma.menuItem.findMany({
       where: {
-        userId: table.userId,
+        restaurantId: table.restaurantId,
         status: { not: 'deleted' },
       },
       orderBy: {
         id: 'desc',
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
         category: true,
         images: true,
         options: true,

@@ -27,10 +27,11 @@ import {
   Table2,
   Receipt,
   ImageIcon,
+  Users,
 } from "lucide-react"
-import { mockMenuItems, mockDashboardStats } from "@/lib/mock-data"
-import { createTable, getImageUrl, getTables, updateTable, deleteTable, createMenuItem, getMenuItems, updateMenuItem, deleteMenuItem, getCategories, createCategory, updateCategory, deleteCategory, addMenuItemOption, uploadMenuImage, deleteMenuItemImage } from "@/lib/api"
+import { createTable, getImageUrl, getTables, updateTable, deleteTable, createMenuItem, getMenuItems, updateMenuItem, deleteMenuItem, getCategories, createCategory, updateCategory, deleteCategory, addMenuItemOption, uploadMenuImage, deleteMenuItemImage, getStaffAccounts, createStaffAccount, deleteStaffAccount } from "@/lib/api"
 import { formatCurrency, formatDate } from "@/lib/format"
+import { getAuthUser, getUserRoleLabel } from "@/lib/auth"
 import { useStore } from "@/lib/store"
 import { StatusBadge } from "@/components/status-badge"
 import { AppHeader } from "@/components/app-header"
@@ -43,6 +44,8 @@ export default function ManagerPage() {
   useRequireRole(["manager", "admin"])
   const logout = useLogout()
   const { orders } = useStore()
+  const currentUser = getAuthUser()
+  const roleInfo = getUserRoleLabel(currentUser?.role)
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
@@ -92,6 +95,17 @@ export default function ManagerPage() {
   const [newTableName, setNewTableName] = useState("")
   const [newTableQrCode, setNewTableQrCode] = useState("")
   const [isSubmittingTable, setIsSubmittingTable] = useState(false)
+  const [staffAccounts, setStaffAccounts] = useState<Array<{ id: string; name: string; email?: string | null; phone?: string | null; address?: string | null; role?: string | null; status?: string; createdAt?: string | null; message?: string }>>([])
+  const [staffFormName, setStaffFormName] = useState("")
+  const [staffFormEmail, setStaffFormEmail] = useState("")
+  const [staffFormPassword, setStaffFormPassword] = useState("")
+  const [staffFormPhone, setStaffFormPhone] = useState("")
+  const [staffFormAddress, setStaffFormAddress] = useState("")
+  const [isCreatingStaffAccount, setIsCreatingStaffAccount] = useState(false)
+  const [isDeletingStaffAccount, setIsDeletingStaffAccount] = useState(false)
+  const [deletingStaffAccountId, setDeletingStaffAccountId] = useState<string | null>(null)
+  const [staffAccountError, setStaffAccountError] = useState<string | null>(null)
+  const [staffAccountSuccess, setStaffAccountSuccess] = useState<string | null>(null)
  
   const categoryOptions = categories.map(cat => ({ id: cat.id, name: cat.name }))
   const filteredCategoryOptions = categoryFilter === "Tất cả" ? categoryOptions : categoryOptions.filter(c => c.name === categoryFilter)
@@ -102,6 +116,18 @@ export default function ManagerPage() {
     const matchesCategory = categoryFilter === "Tất cả" || categoryName === categoryFilter
     return matchesSearch && matchesCategory
   })
+
+  const getItemImagePath = (item: MenuItem, index = 0) => {
+    const value = item.images?.[index]
+    if (!value) return ""
+    return typeof value === "string" ? value : value.image || ""
+  }
+
+  const activeMenuCount = menuItems.filter((item) => item.available).length
+  const categoryCount = categories.length
+  const tableCount = tables.length
+  const occupiedTableCount = tables.filter((table) => table.status === "occupied").length
+  const latestMenuItems = [...menuItems].sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)).slice(0, 4)
  
   const orderChartData = [
     { name: "T2", orders: 45 },
@@ -152,8 +178,18 @@ export default function ManagerPage() {
         setIsLoadingTables(false)
       }
     }
+
+    async function loadStaffAccounts() {
+      try {
+        const data = await getStaffAccounts()
+        setStaffAccounts(Array.isArray(data) ? data : [])
+      } catch (error: any) {
+        setStaffAccountError(error?.message || "Không thể tải danh sách nhân viên")
+      }
+    }
  
     loadTables()
+    loadStaffAccounts()
   }, [])
  
   const toggleItemAvailability = (itemId: string) => {
@@ -237,31 +273,74 @@ export default function ManagerPage() {
     return `${window.location.origin}/menu/${encodeURIComponent(safeCode)}`
   }
  
+  const handleCreateStaffAccount = async (event?: any) => {
+    event?.preventDefault()
+    if (!staffFormName.trim() || !staffFormEmail.trim() || !staffFormPassword.trim()) {
+      setStaffAccountError("Vui lòng nhập đầy đủ tên, email và mật khẩu")
+      return
+    }
+ 
+    try {
+      setIsCreatingStaffAccount(true)
+      setStaffAccountError(null)
+      setStaffAccountSuccess(null)
+      const created = await createStaffAccount({
+        name: staffFormName.trim(),
+        email: staffFormEmail.trim(),
+        password: staffFormPassword,
+        phone: staffFormPhone.trim() || undefined,
+        address: staffFormAddress.trim() || undefined,
+      })
+      setStaffAccounts((prev) => [created, ...prev])
+      setStaffAccountSuccess(created.message || "Tài khoản nhân viên đã được tạo thành công")
+      setStaffFormName("")
+      setStaffFormEmail("")
+      setStaffFormPassword("")
+      setStaffFormPhone("")
+      setStaffFormAddress("")
+    } catch (error: any) {
+      setStaffAccountError(error?.message || "Không thể tạo tài khoản nhân viên")
+    } finally {
+      setIsCreatingStaffAccount(false)
+    }
+  }
+
+  const handleDeleteStaffAccount = async (accountId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản nhân viên này?")) {
+      return
+    }
+
+    try {
+      setIsDeletingStaffAccount(true)
+      setDeletingStaffAccountId(accountId)
+      setStaffAccountError(null)
+      setStaffAccountSuccess(null)
+      const result = await deleteStaffAccount(accountId)
+      setStaffAccounts((prev) => prev.filter((account) => account.id !== accountId))
+      setStaffAccountSuccess(result.message || "Xóa tài khoản nhân viên thành công")
+    } catch (error: any) {
+      setStaffAccountError(error?.message || "Không thể xóa tài khoản nhân viên")
+    } finally {
+      setIsDeletingStaffAccount(false)
+      setDeletingStaffAccountId(null)
+    }
+  }
+
   const handleCreateTable = async (event: any) => {
     event.preventDefault()
     if (!newTableName.trim()) return
- 
+
     try {
       setIsSubmittingTable(true)
       setTableError(null)
       const created = await createTable({
         name: newTableName.trim(),
         qrCode: newTableQrCode.trim() || undefined,
-        status: "empty",
       })
- 
-      setTables((prev) => [
-        {
-          id: created.id,
-          name: created.name,
-          qrCode: created.qrCode,
-          status: created.status,
-        },
-        ...prev,
-      ])
+
+      setTables((prev) => [created, ...prev])
       setNewTableName("")
       setNewTableQrCode("")
-      setIsCreatingTable(false)
     } catch (error: any) {
       setTableError(error?.message || "Không thể tạo bàn")
     } finally {
@@ -566,6 +645,13 @@ export default function ManagerPage() {
               <span className="whitespace-nowrap">Bàn</span>
             </TabsTrigger>
             <TabsTrigger
+              value="staff"
+              className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+            >
+              <Users className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">Nhân viên</span>
+            </TabsTrigger>
+            <TabsTrigger
               value="orders"
               className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-500 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-none"
             >
@@ -576,63 +662,70 @@ export default function ManagerPage() {
  
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-4">
-            {/* Stats Cards */}
+            <Card className="rounded-2xl border-slate-200 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Đang quản lý dữ liệu của cửa hàng hiện tại</p>
+                    <p className="text-sm text-slate-500">{currentUser?.restaurantId ? `Mã quán: ${currentUser.restaurantId}` : "Tài khoản chưa liên kết với quán"}</p>
+                  </div>
+                  <Badge className={`w-fit rounded-full ${roleInfo.badgeClass} hover:${roleInfo.badgeClass}`}>
+                    {roleInfo.label}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Card className="rounded-2xl border-slate-200 shadow-sm">
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50">
-                      <DollarSign className="h-4 w-4 text-emerald-600" />
+                      <UtensilsCrossed className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <span className="text-xs font-medium text-slate-500">Doanh thu hôm nay</span>
+                    <span className="text-xs font-medium text-slate-500">Món đang bán</span>
                   </div>
-                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">
-                    {formatCurrency(mockDashboardStats.todayRevenue)}
-                  </div>
-                  <p className="mt-1 text-xs text-emerald-600">+12% so với hôm qua</p>
+                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">{activeMenuCount}</div>
+                  <p className="mt-1 text-xs text-emerald-600">Từ menu của quán bạn</p>
                 </CardContent>
               </Card>
- 
+
               <Card className="rounded-2xl border-slate-200 shadow-sm">
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50">
                       <ShoppingBag className="h-4 w-4 text-blue-600" />
                     </div>
-                    <span className="text-xs font-medium text-slate-500">Đơn hôm nay</span>
+                    <span className="text-xs font-medium text-slate-500">Loại sản phẩm</span>
                   </div>
-                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">{mockDashboardStats.todayOrders}</div>
-                  <p className="mt-1 text-xs text-blue-600">+8% so với hôm qua</p>
+                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">{categoryCount}</div>
+                  <p className="mt-1 text-xs text-blue-600">Danh mục đang dùng</p>
                 </CardContent>
               </Card>
- 
+
               <Card className="rounded-2xl border-slate-200 shadow-sm">
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50">
-                      <TrendingUp className="h-4 w-4 text-purple-600" />
+                      <Table2 className="h-4 w-4 text-purple-600" />
                     </div>
-                    <span className="text-xs font-medium text-slate-500">Doanh thu tháng</span>
+                    <span className="text-xs font-medium text-slate-500">Tổng bàn</span>
                   </div>
-                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">
-                    {formatCurrency(mockDashboardStats.monthRevenue)}
-                  </div>
-                  <p className="mt-1 text-xs text-purple-600">+15% so với tháng trước</p>
+                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">{tableCount}</div>
+                  <p className="mt-1 text-xs text-purple-600">Đã tạo cho quán</p>
                 </CardContent>
               </Card>
- 
+
               <Card className="rounded-2xl border-slate-200 shadow-sm">
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50">
-                      <TrendingUp className="h-4 w-4 text-orange-600" />
+                      <QrCode className="h-4 w-4 text-orange-600" />
                     </div>
-                    <span className="text-xs font-medium text-slate-500">Doanh thu năm</span>
+                    <span className="text-xs font-medium text-slate-500">Bàn đang phục vụ</span>
                   </div>
-                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">
-                    {formatCurrency(mockDashboardStats.yearRevenue)}
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">Mục tiêu: 2B VND</p>
+                  <div className="text-xl font-bold text-slate-900 sm:text-2xl">{occupiedTableCount}</div>
+                  <p className="mt-1 text-xs text-slate-400">Theo trạng thái bàn</p>
                 </CardContent>
               </Card>
             </div>
@@ -702,18 +795,23 @@ export default function ManagerPage() {
             {/* Popular Items */}
             <Card className="rounded-2xl border-slate-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-900">Món bán chạy</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-900">Món mới nhất</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {mockDashboardStats.popularItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                {latestMenuItems.length === 0 ? (
+                  <p className="text-sm text-slate-500">Chưa có món nào trong quán này.</p>
+                ) : latestMenuItems.map((item, index) => (
+                  <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
                     <div className="flex items-center gap-3">
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-600 shadow-sm">
                         {index + 1}
                       </span>
-                      <span className="text-sm font-medium text-slate-900">{item.name}</span>
+                      <div>
+                        <span className="block text-sm font-medium text-slate-900">{item.name}</span>
+                        <span className="text-xs text-slate-500">{item.available ? "Đang hiển thị" : "Đang ẩn"}</span>
+                      </div>
                     </div>
-                    <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{item.count} đơn</Badge>
+                    <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{formatCurrency(item.price)}</Badge>
                   </div>
                 ))}
               </CardContent>
@@ -1029,7 +1127,7 @@ export default function ManagerPage() {
                       {item.images && item.images.length > 0 ? (
                         <div className="relative aspect-square w-full bg-slate-100">
                           <img
-                            src={getImageUrl(item.images[0].image)}
+                            src={getImageUrl(getItemImagePath(item, 0))}
                             alt={item.name}
                             className="h-full w-full object-cover"
                           />
@@ -1423,6 +1521,127 @@ export default function ManagerPage() {
             </Dialog>
           </TabsContent>
  
+          {/* Staff Accounts Tab */}
+          <TabsContent value="staff" className="space-y-4">
+            <Card className="rounded-2xl border-slate-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-900">Tạo tài khoản nhân viên</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateStaffAccount} className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-name">Họ tên</Label>
+                    <Input
+                      id="staff-name"
+                      value={staffFormName}
+                      onChange={(e) => setStaffFormName(e.target.value)}
+                      placeholder="Nhập họ tên nhân viên"
+                      className="h-11 rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-email">Email</Label>
+                    <Input
+                      id="staff-email"
+                      type="email"
+                      value={staffFormEmail}
+                      onChange={(e) => setStaffFormEmail(e.target.value)}
+                      placeholder="email@domain.com"
+                      className="h-11 rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-password">Mật khẩu</Label>
+                    <Input
+                      id="staff-password"
+                      type="password"
+                      value={staffFormPassword}
+                      onChange={(e) => setStaffFormPassword(e.target.value)}
+                      placeholder="Tối thiểu 6 ký tự"
+                      className="h-11 rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-phone">Số điện thoại</Label>
+                    <Input
+                      id="staff-phone"
+                      value={staffFormPhone}
+                      onChange={(e) => setStaffFormPhone(e.target.value)}
+                      placeholder="Ví dụ: 0901234567"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="staff-address">Địa chỉ</Label>
+                    <Textarea
+                      id="staff-address"
+                      value={staffFormAddress}
+                      onChange={(e) => setStaffFormAddress(e.target.value)}
+                      placeholder="Nhập địa chỉ nhân viên"
+                      rows={3}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Button type="submit" className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700" disabled={isCreatingStaffAccount}>
+                      {isCreatingStaffAccount ? "Đang tạo..." : "Tạo tài khoản nhân viên"}
+                    </Button>
+                    {staffAccountError ? <p className="text-sm text-red-600">{staffAccountError}</p> : null}
+                    {staffAccountSuccess ? <p className="text-sm text-emerald-600">{staffAccountSuccess}</p> : null}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-slate-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-900">Danh sách nhân viên</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {staffAccounts.length === 0 ? (
+                  <p className="text-sm text-slate-500">Chưa có tài khoản nhân viên nào.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {staffAccounts.map((account) => (
+                      <div key={account.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{account.name}</p>
+                          <p className="text-xs text-slate-500">{account.email || "Không có email"}</p>
+                          <p className="text-xs text-slate-500">
+                            {account.phone || "Chưa có số điện thoại"}
+                            {account.address ? ` • ${account.address}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-left md:text-right">
+                        <div className="flex items-center gap-2 md:justify-end">
+                          <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                            {account.role || "service"}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => handleDeleteStaffAccount(account.id)}
+                            disabled={isDeletingStaffAccount && deletingStaffAccountId === account.id}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">{account.status || "active"}</p>
+                        {account.createdAt ? <p className="mt-1 text-xs text-slate-400">{new Date(account.createdAt).toLocaleDateString("vi-VN")}</p> : null}
+                      </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Order History Tab */}
           <TabsContent value="orders" className="space-y-3">
             <h2 className="text-base font-semibold text-slate-900">Lịch sử đơn hàng</h2>
