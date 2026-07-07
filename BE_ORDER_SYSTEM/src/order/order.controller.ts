@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Request, UseGuards } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto, UpdateOrderDto, CreateOrderItemDto, CreateOrderByQrCodeDto } from './order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -25,8 +25,10 @@ export class OrderController {
 
   @Get()
   @Roles(UserRole.admin, UserRole.manager, UserRole.service, UserRole.kitchen)
-  findAll() {
-    return this.orderService.findAll();
+  findAll(@Request() req: any) {
+    const restaurantId = req.user?.restaurantId;
+    const isAdmin = req.user?.role === UserRole.admin;
+    return this.orderService.findAll(restaurantId, isAdmin);
   }
 
   @Public()

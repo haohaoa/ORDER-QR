@@ -2,10 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, UpdateOrderDto, CreateOrderItemDto, CreateOrderByQrCodeDto } from './order.dto';
 import { Order, Prisma } from '@prisma/client';
+import { OrderGateway } from './order.gateway';
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly orderGateway: OrderGateway,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     const { tableId, ...data } = createOrderDto;
@@ -14,7 +18,7 @@ export class OrderService {
       throw new NotFoundException(`Không tìm thấy bàn với ID ${tableId}`);
     }
 
-    return this.prisma.order.create({
+    const createdOrder = await this.prisma.order.create({
       data: {
         ...data,
         restaurant: {
@@ -30,6 +34,13 @@ export class OrderService {
         payments: true,
       },
     });
+
+    this.orderGateway.emitNewOrder({
+      ...createdOrder,
+      restaurantId: table.restaurantId,
+    });
+
+    return createdOrder;
   }
 
   async createByQrCode(qrCode: string, createOrderByQrCodeDto: CreateOrderByQrCodeDto): Promise<Order> {
@@ -39,7 +50,7 @@ export class OrderService {
     }
 
     const { items, ...data } = createOrderByQrCodeDto;
-    return this.prisma.order.create({
+    const createdOrder = await this.prisma.order.create({
       data: {
         ...data,
         restaurant: {
@@ -69,14 +80,27 @@ export class OrderService {
         payments: true,
       },
     });
+
+    this.orderGateway.emitNewOrder({
+      ...createdOrder,
+      restaurantId: table.restaurantId,
+    });
+
+    return createdOrder;
   }
 
-  async findAll(): Promise<Order[]> {
+  async findAll(restaurantId?: string, includeAll = false): Promise<Order[]> {
+    const where = includeAll || !restaurantId ? {} : { restaurantId };
+
     return this.prisma.order.findMany({
+      where,
       include: {
         table: true,
         items: true,
         payments: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }
@@ -130,7 +154,7 @@ export class OrderService {
 
   async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
     const { tableId, ...data } = updateOrderDto;
-    return this.prisma.order.update({
+    const updatedOrder = await this.prisma.order.update({
       where: { id },
       data: {
         ...data,
@@ -144,6 +168,10 @@ export class OrderService {
         payments: true,
       },
     });
+
+    this.orderGateway.emitOrderUpdated(updatedOrder);
+
+    return updatedOrder;
   }
 
   async remove(id: string): Promise<Order> {

@@ -152,6 +152,34 @@ export async function getOrdersByQrCode(qrCode: string) {
   return res.json()
 }
 
+export async function getOrders() {
+  const res = await fetch(`${API_BASE_URL}/orders`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Get orders failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function updateOrder(id: string, payload: {
+  status?: 'pending' | 'preparing' | 'ready' | 'delivered' | 'completed' | 'cancelled'
+  totalAmount?: number
+  tableId?: string
+}) {
+  const res = await fetch(`${API_BASE_URL}/orders/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Update order failed: ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function updateOrderItem(orderId: string, itemId: string, payload: { quantity?: number; note?: string; details?: any }) {
   const res = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}`, {
     method: 'PATCH',
