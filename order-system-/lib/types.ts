@@ -7,6 +7,9 @@ export interface MenuOption {
   id?: string
   name: string
   required?: boolean
+  isMultiple?: boolean
+  price?: number
+  choices?: Array<{ name: string; price?: number }>
 }
 
 export interface MenuItemImage {

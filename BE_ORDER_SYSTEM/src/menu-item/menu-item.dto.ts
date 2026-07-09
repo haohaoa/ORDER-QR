@@ -8,6 +8,17 @@ export class CreateMenuItemOptionDto {
   @IsOptional()
   @IsBoolean()
   required?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isMultiple?: boolean;
+
+  @IsOptional()
+  choices?: any;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 }
 
 export class CreateMenuItemDto {
@@ -84,4 +95,15 @@ export class CreateOptionItemDto {
 
   @IsBoolean()
   required: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isMultiple?: boolean;
+
+  @IsOptional()
+  choices?: any;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 }

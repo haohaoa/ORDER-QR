@@ -1,4 +1,4 @@
-import { IsString, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateOptionItemDto {
   @IsString()
@@ -9,6 +9,17 @@ export class CreateOptionItemDto {
 
   @IsBoolean()
   required: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isMultiple?: boolean;
+
+  @IsOptional()
+  choices?: any;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 }
 
 export class UpdateOptionItemDto {
@@ -19,4 +30,15 @@ export class UpdateOptionItemDto {
   @IsOptional()
   @IsBoolean()
   required?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isMultiple?: boolean;
+
+  @IsOptional()
+  choices?: any;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 }

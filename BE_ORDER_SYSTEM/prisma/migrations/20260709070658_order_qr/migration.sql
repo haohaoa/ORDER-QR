@@ -91,7 +91,7 @@ CREATE TABLE `Order` (
     `id` VARCHAR(191) NOT NULL,
     `restaurantId` VARCHAR(191) NOT NULL,
     `tableId` VARCHAR(191) NOT NULL,
-    `status` ENUM('pending', 'preparing', 'ready', 'delivered', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+    `status` ENUM('pending', 'staffConfirmed', 'preparing', 'ready', 'served', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
     `totalAmount` DECIMAL(12, 2) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
@@ -110,7 +110,8 @@ CREATE TABLE `OrderItem` (
     `price` DECIMAL(12, 2) NOT NULL,
     `quantity` INTEGER NOT NULL DEFAULT 1,
     `note` VARCHAR(191) NULL,
-    `status` ENUM('pending', 'preparing', 'done', 'cancelled') NOT NULL DEFAULT 'pending',
+    `details` JSON NULL,
+    `status` ENUM('pending', 'staffConfirmed', 'preparing', 'ready', 'served', 'cancelled') NOT NULL DEFAULT 'pending',
     `confirmedBy` VARCHAR(191) NULL,
     `confirmedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -156,6 +157,9 @@ CREATE TABLE `OptionItem` (
     `menuId` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
     `required` BOOLEAN NOT NULL DEFAULT false,
+    `isMultiple` BOOLEAN NOT NULL DEFAULT false,
+    `choices` JSON NULL,
+    `price` DECIMAL(12, 2) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)

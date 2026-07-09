@@ -31,7 +31,7 @@ export async function getMenuItems() {
   return res.json()
 }
 
-export async function createMenuItem(payload: { name: string; description?: string; price: number; available: boolean; categoryId?: string; options?: Array<{ name: string; required?: boolean }> }) {
+export async function createMenuItem(payload: { name: string; description?: string; price: number; available: boolean; categoryId?: string; options?: Array<{ name: string; required?: boolean; isMultiple?: boolean; choices?: Array<{ name: string; price?: number }>; price?: number }> }) {
   const res = await fetch(`${API_BASE_URL}/menu-items`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -44,7 +44,7 @@ export async function createMenuItem(payload: { name: string; description?: stri
   return res.json()
 }
 
-export async function updateMenuItem(id: string, payload: { name?: string; description?: string; price?: number; available?: boolean; categoryId?: string; options?: Array<{ name: string; required?: boolean }> }) {
+export async function updateMenuItem(id: string, payload: { name?: string; description?: string; price?: number; available?: boolean; categoryId?: string; options?: Array<{ name: string; required?: boolean; isMultiple?: boolean; choices?: Array<{ name: string; price?: number }>; price?: number }> }) {
   const res = await fetch(`${API_BASE_URL}/menu-items/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),

@@ -193,6 +193,7 @@ model OrderItem {
   price      Decimal         @db.Decimal(12, 2)
   quantity   Int             @default(1)
   note       String?
+  details    Json?
   status     OrderItemStatus @default(pending)
   confirmedBy String?
   confirmedAt DateTime?
@@ -233,10 +234,13 @@ model ImageItem {
 }
 
 model OptionItem {
-  id        Int      @id @default(autoincrement())
-  menuId    String
-  name      String
-  required  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  menu      MenuItem @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  menuId     String
+  name       String
+  required   Boolean  @default(false)
+  isMultiple Boolean  @default(false)
+  choices    Json?
+  price      Decimal? @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+  menu       MenuItem @relation(fields: [menuId], references: [id], onDelete: Cascade)
 }

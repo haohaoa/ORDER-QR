@@ -12,6 +12,7 @@ export class OptionItemService {
     return this.prisma.optionItem.create({
       data: {
         ...data,
+        price: data.price ?? null,
         menu: {
           connect: { id: menuId },
         },
@@ -46,7 +47,10 @@ export class OptionItemService {
   async update(id: number, updateOptionItemDto: UpdateOptionItemDto): Promise<OptionItem> {
     return this.prisma.optionItem.update({
       where: { id },
-      data: updateOptionItemDto,
+      data: {
+        ...updateOptionItemDto,
+        price: updateOptionItemDto.price ?? undefined,
+      },
       include: {
         menu: true,
       },

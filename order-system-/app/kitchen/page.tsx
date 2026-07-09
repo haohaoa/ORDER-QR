@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useRequireRole } from "@/lib/useAuth"
+import { clearAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { ChefHat, Check, X, LogOut, UtensilsCrossed, Coffee } from "lucide-react"
-import { confirmOrderItem, getKitchenQueue, updateOrderItemStatusByApi } from "@/lib/api"
+import { confirmOrderItem, getKitchenQueue, updateOrderItemStatusByApi, getImageUrl } from "@/lib/api"
 import Image from "next/image"
 
 type ItemStatus = "pending" | "staffConfirmed" | "preparing" | "ready" | "served" | "completed" | "cancelled"
@@ -24,6 +25,7 @@ type KitchenOrderItem = {
   image?: string
   selectedSize?: { name?: string }
   selectedToppings?: Array<{ name: string }>
+  selectedOptions?: Array<{ name: string }>
   menuItem?: { images?: Array<{ image?: string }> }
 }
 
@@ -71,11 +73,12 @@ export default function KitchenPage() {
           name: item.name,
           quantity: item.quantity || 1,
           status: item.status,
-          category: item.category,
+          category: item.menuItem?.category?.name || item.category,
           notes: item.note,
-          image: item.menuItem?.images?.[0]?.image || item.image,
-          selectedSize: item.selectedSize,
-          selectedToppings: item.selectedToppings || [],
+          image: getImageUrl(item.menuItem?.images?.[0]?.image || item.details?.image || item.image),
+          selectedSize: item.details?.selectedSize || item.selectedSize || null,
+          selectedToppings: item.details?.selectedToppings || item.selectedToppings || [],
+          selectedOptions: item.details?.selectedOptions || item.selectedOptions || [],
           menuItem: item.menuItem,
         })),
       }))
@@ -112,13 +115,18 @@ export default function KitchenPage() {
 
   // Tapping an item only ever changes THAT item. Everything else in the
   // table stays exactly as it was.
-  const handleAccept = async (orderId: string, itemId: string) => {
+  const handleConfirm = async (orderId: string, itemId: string) => {
     await confirmOrderItem(orderId, itemId)
     await loadKitchenQueue()
   }
 
+  const handleStartPreparing = async (orderId: string, itemId: string) => {
+    await updateOrderItemStatusByApi(orderId, itemId, "preparing")
+    await loadKitchenQueue()
+  }
+
   const handleComplete = async (orderId: string, itemId: string) => {
-    await updateOrderItemStatusByApi(orderId, itemId, "served")
+    await updateOrderItemStatusByApi(orderId, itemId, "ready")
     await loadKitchenQueue()
   }
 
@@ -132,7 +140,8 @@ export default function KitchenPage() {
   }
 
   const handleLogout = () => {
-    router.push("auth/login")
+    clearAuth()
+    router.push("/auth/login")
   }
 
   const TableCard = ({ order }: { order: KitchenOrder }) => {
@@ -157,7 +166,7 @@ export default function KitchenPage() {
                 // Completed: quiet, low-emphasis, non-interactive
                 <div className="flex flex-1 items-center gap-3 rounded-md border border-gray-100 bg-gray-50 p-2 opacity-50">
                   <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md">
-                    <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                    <img src={item.image || "/placeholder.svg"} alt={item.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-500 line-through">{item.name}</p>
@@ -167,14 +176,14 @@ export default function KitchenPage() {
               ) : (
                 <>
                   <button
-                    onClick={() => status === "pending" && handleAccept(order.id, item.id)}
+                    onClick={() => status === "pending" && handleConfirm(order.id, item.id)}
                     className={`flex flex-1 items-center gap-3 rounded-md border p-2 text-left transition-colors ${status === "preparing"
                       ? "border-2 border-amber-400 bg-white"
                       : "border-gray-200 bg-white active:bg-gray-50"
                       }`}
                   >
                     <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md">
-                      <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                      <img src={item.image || "/placeholder.svg"} alt={item.name} className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -201,23 +210,47 @@ export default function KitchenPage() {
                                 : "Đã hoàn tất"}
                         </span>
                       </div>
-                      {item.selectedSize && (
-                        <p className="text-xs text-gray-500">Size: {item.selectedSize.name}</p>
+                      {(item.selectedSize || (item.selectedToppings?.length ?? 0) > 0 || (item.selectedOptions?.length ?? 0) > 0) && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {item.selectedSize && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">
+                              📐 {item.selectedSize.name}
+                            </span>
+                          )}
+                          {(item.selectedOptions ?? []).map((opt: any, i: number) => (
+                            <span key={`opt-${i}`} className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                              ✓ {opt.groupName ? `${opt.groupName}: ${opt.name}` : opt.name}
+                            </span>
+                          ))}
+                          {(item.selectedToppings ?? []).map((t: any, i: number) => (
+                            <span key={i} className="inline-flex items-center gap-0.5 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-purple-200">
+                              + {t.name}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                      {(item.selectedToppings?.length ?? 0) > 0 && (
-                        <p className="truncate text-xs text-gray-500">
-                          + {(item.selectedToppings ?? []).map((t: any) => t.name).join(", ")}
-                        </p>
+                      {item.notes && (
+                        <div className="mt-1.5 flex items-start gap-1 rounded-md border-l-2 border-orange-400 bg-orange-50 px-2 py-1">
+                          <span className="text-[10px] font-black uppercase tracking-wide text-orange-500">YC:</span>
+                          <span className="text-[10px] font-semibold leading-tight text-orange-700">{item.notes}</span>
+                        </div>
                       )}
-                      {item.notes && <p className="truncate text-xs font-medium text-amber-600">📝 {item.notes}</p>}
                     </div>
                   </button>
 
-                  {status === "staffConfirmed" ? (
+                  {status === "pending" ? (
+                    <Button
+                      size="sm"
+                      className="h-auto shrink-0 bg-slate-600 px-3 text-xs font-semibold hover:bg-slate-700 text-white"
+                      onClick={() => handleConfirm(order.id, item.id)}
+                    >
+                      Xác nhận
+                    </Button>
+                  ) : status === "staffConfirmed" ? (
                     <Button
                       size="sm"
                       className="h-auto shrink-0 bg-blue-600 px-3 text-xs font-semibold hover:bg-blue-700"
-                      onClick={() => handleAccept(order.id, item.id)}
+                      onClick={() => handleStartPreparing(order.id, item.id)}
                     >
                       Nhận món
                     </Button>

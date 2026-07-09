@@ -23,6 +23,17 @@ const ORDER_ITEM_STATUS = {
   cancelled: 'cancelled',
 } as const;
 
+function calculateItemPrice(basePrice: number, details?: any): number {
+  const selectedOptions = Array.isArray(details?.selectedOptions) ? details.selectedOptions : [];
+  const optionPrice = selectedOptions.reduce((sum: number, option: any) => sum + Number(option?.price ?? 0), 0);
+  const sizePrice = Number(details?.selectedSize?.price ?? 0);
+  const toppingPrice = Array.isArray(details?.selectedToppings)
+    ? details.selectedToppings.reduce((sum: number, topping: any) => sum + Number(topping?.price ?? 0), 0)
+    : 0;
+
+  return Number(basePrice) + optionPrice + sizePrice + toppingPrice;
+}
+
 @Injectable()
 export class OrderService {
   constructor(
@@ -85,9 +96,10 @@ export class OrderService {
                   connect: { id: item.menuItemId },
                 },
                 name: item.name,
-                price: new Prisma.Decimal(item.price.toString()),
+                price: new Prisma.Decimal(calculateItemPrice(Number(item.price ?? 0), item.details).toString()),
                 quantity: item.quantity,
                 note: item.note,
+                details: item.details ?? undefined,
                 status: item.status,
               })),
             }
@@ -176,6 +188,7 @@ export class OrderService {
             menuItem: {
               include: {
                 images: true,
+                category: true,
               },
             },
           },
@@ -286,7 +299,7 @@ export class OrderService {
     });
   }
 
-  async updateOrderItem(orderId: string, itemId: string, data: { quantity?: number; note?: string }) {
+  async updateOrderItem(orderId: string, itemId: string, data: { quantity?: number; note?: string; details?: any }) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${orderId}`);
@@ -301,9 +314,19 @@ export class OrderService {
       throw new NotFoundException(`Không tìm thấy món trong đơn hàng ${orderId}`);
     }
 
+    const basePrice = await this.prisma.menuItem.findUnique({
+      where: { id: item.menuItemId },
+      select: { price: true },
+    });
+
+    const effectivePrice = calculateItemPrice(Number(basePrice?.price ?? item.price ?? 0), data.details ?? item.details ?? undefined);
+
     const updatedItem = await this.prisma.orderItem.update({
       where: { id: itemId },
-      data,
+      data: {
+        ...data,
+        price: new Prisma.Decimal(effectivePrice.toString()),
+      },
     });
 
     const orderItems = await this.prisma.orderItem.findMany({ where: { orderId } });

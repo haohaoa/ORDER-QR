@@ -71,7 +71,7 @@ export class OrderController {
 
   @Public()
   @Patch(':id/items/:itemId')
-  updateOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { quantity?: number; note?: string }) {
+  updateOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { quantity?: number; note?: string; details?: any }) {
     return this.orderService.updateOrderItem(id, itemId, body);
   }
 

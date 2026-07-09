@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsNumber, IsOptional, ValidateNested } from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsOptional, IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus, OrderItemStatus } from '@prisma/client';
 
@@ -29,6 +29,10 @@ export class CreateOrderItemInputDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsObject()
+  details?: any;
 
   @IsEnum(OrderItemStatus)
   status: OrderItemStatus;
@@ -77,6 +81,10 @@ export class CreateOrderItemDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsObject()
+  details?: any;
 
   @IsEnum(OrderItemStatus)
   status: OrderItemStatus;

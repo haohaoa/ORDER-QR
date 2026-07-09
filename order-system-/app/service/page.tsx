@@ -71,6 +71,11 @@ type MenuItem = {
   price: number
   quantity: number
   status?: string
+  notes?: string | null
+  selectedSize?: { name?: string; price?: number } | null
+  selectedToppings?: Array<{ name: string; price?: number }> | null
+  selectedOptions?: Array<{ name: string }> | null
+  details?: any
 }
  
 type TableInfo = {
@@ -113,7 +118,8 @@ type ApiOrderItem = {
   price: number | string
   quantity: number
   status: string
-  note?: string
+  note?: string | null
+  details?: any
 }
  
 type ApiOrder = {
@@ -139,6 +145,11 @@ function mapOrderItem(item: ApiOrderItem, orderId: string): MenuItem {
     price: Number(item.price) || 0,
     quantity: item.quantity || 1,
     status: item.status,
+    notes: item.note ?? null,
+    selectedSize: item.details?.selectedSize ?? null,
+    selectedToppings: item.details?.selectedToppings ?? null,
+    selectedOptions: item.details?.selectedOptions ?? null,
+    details: item.details,
   }
 }
  
@@ -1033,8 +1044,33 @@ export default function TablesPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium text-gray-900">{item.name}</p>
                           <p className="text-sm text-gray-500">{formatVND(item.price)} / món</p>
+                          {(item.selectedSize || (item.selectedToppings?.length ?? 0) > 0 || (item.selectedOptions?.length ?? 0) > 0) && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {item.selectedSize && (
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200">
+                                  📐 {item.selectedSize.name}
+                                </span>
+                              )}
+                              {(item.selectedOptions ?? []).map((opt: any, i) => (
+                                <span key={`opt-${i}`} className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                  ✓ {opt.groupName ? `${opt.groupName}: ${opt.name}` : opt.name}
+                                </span>
+                              ))}
+                              {(item.selectedToppings ?? []).map((t, i) => (
+                                <span key={i} className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-700 ring-1 ring-purple-200">
+                                  + {t.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {item.notes && (
+                            <div className="mt-1.5 flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5">
+                              <span className="shrink-0 text-xs font-black text-orange-500">YC:</span>
+                              <span className="text-xs font-semibold text-orange-700 leading-snug">{item.notes}</span>
+                            </div>
+                          )}
                           {item.status && (
-                            <Badge variant="secondary" className="mt-1 text-[10px]">
+                            <Badge variant="secondary" className="mt-1.5 text-[10px]">
                               {itemStatusLabel(item.status)}
                             </Badge>
                           )}
@@ -1259,10 +1295,35 @@ export default function TablesPage() {
                       {reviewOrderSafe.items.map((item) => (
                         <li key={`${item.orderId}-${item.id}`} className="flex items-center justify-between gap-3 py-3">
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-gray-900">{item.name}</p>
+                            <p className="truncate font-semibold text-gray-900">{item.name}</p>
                             <p className="text-sm text-gray-500">{formatVND(item.price)} / món</p>
+                            {(item.selectedSize || (item.selectedToppings?.length ?? 0) > 0 || (item.selectedOptions?.length ?? 0) > 0) && (
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                {item.selectedSize && (
+                                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200">
+                                    📐 {item.selectedSize.name}
+                                  </span>
+                                )}
+                                {(item.selectedOptions ?? []).map((opt: any, i) => (
+                                  <span key={`opt-${i}`} className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                    ✓ {opt.groupName ? `${opt.groupName}: ${opt.name}` : opt.name}
+                                  </span>
+                                ))}
+                                {(item.selectedToppings ?? []).map((t, i) => (
+                                  <span key={i} className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-700 ring-1 ring-purple-200">
+                                    + {t.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {item.notes && (
+                              <div className="mt-1.5 flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5">
+                                <span className="shrink-0 text-xs font-black text-orange-500">YC:</span>
+                                <span className="text-xs font-semibold text-orange-700 leading-snug">{item.notes}</span>
+                              </div>
+                            )}
                             {item.status && (
-                              <Badge variant="secondary" className="mt-1 text-[10px]">
+                              <Badge variant="secondary" className="mt-1.5 text-[10px]">
                                 {itemStatusLabel(item.status)}
                               </Badge>
                             )}

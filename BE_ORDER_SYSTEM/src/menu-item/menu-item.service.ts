@@ -7,7 +7,7 @@ import { MenuItem } from '@prisma/client';
 export class MenuItemService {
   constructor(private prisma: PrismaService) { }
 
-  private async syncOptions(menuId: string, options?: Array<{ name: string; required?: boolean }>) {
+  private async syncOptions(menuId: string, options?: Array<{ name: string; required?: boolean; isMultiple?: boolean; choices?: any; price?: number }>) {
     if (options === undefined) {
       return;
     }
@@ -22,6 +22,9 @@ export class MenuItemService {
             menuId,
             name: option.name.trim(),
             required: Boolean(option.required),
+            isMultiple: Boolean(option.isMultiple),
+            choices: option.choices || null,
+            price: option.price ?? null,
           })),
       });
     }
