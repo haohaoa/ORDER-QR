@@ -26,26 +26,15 @@ CREATE TABLE `User` (
     `password` VARCHAR(191) NOT NULL,
     `refreshToken` VARCHAR(191) NULL,
     `avatarUrl` VARCHAR(191) NULL,
+    `role` VARCHAR(191) NULL DEFAULT 'service',
+    `restaurantId` VARCHAR(191) NULL,
+    `contractType` VARCHAR(191) NULL,
+    `address` VARCHAR(191) NULL,
     `status` ENUM('active', 'inactive', 'suspended', 'deleted') NOT NULL DEFAULT 'active',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `User_email_key`(`email`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `RestaurantMembership` (
-    `id` VARCHAR(191) NOT NULL,
-    `userId` VARCHAR(191) NOT NULL,
-    `restaurantId` VARCHAR(191) NOT NULL,
-    `role` ENUM('owner', 'manager', 'staff') NOT NULL DEFAULT 'staff',
-    `status` ENUM('active', 'invited', 'inactive', 'suspended', 'deleted') NOT NULL DEFAULT 'active',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    INDEX `RestaurantMembership_restaurantId_role_idx`(`restaurantId`, `role`),
-    UNIQUE INDEX `RestaurantMembership_userId_restaurantId_key`(`userId`, `restaurantId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -122,6 +111,8 @@ CREATE TABLE `OrderItem` (
     `quantity` INTEGER NOT NULL DEFAULT 1,
     `note` VARCHAR(191) NULL,
     `status` ENUM('pending', 'preparing', 'done', 'cancelled') NOT NULL DEFAULT 'pending',
+    `confirmedBy` VARCHAR(191) NULL,
+    `confirmedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -171,10 +162,7 @@ CREATE TABLE `OptionItem` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `RestaurantMembership` ADD CONSTRAINT `RestaurantMembership_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `RestaurantMembership` ADD CONSTRAINT `RestaurantMembership_restaurantId_fkey` FOREIGN KEY (`restaurantId`) REFERENCES `Restaurant`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `User` ADD CONSTRAINT `User_restaurantId_fkey` FOREIGN KEY (`restaurantId`) REFERENCES `Restaurant`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Table` ADD CONSTRAINT `Table_restaurantId_fkey` FOREIGN KEY (`restaurantId`) REFERENCES `Restaurant`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

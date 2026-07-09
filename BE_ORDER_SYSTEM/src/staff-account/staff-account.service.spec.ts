@@ -56,6 +56,32 @@ describe('StaffAccountService', () => {
     expect(prisma.user.create).toHaveBeenCalled();
   });
 
+  it('creates a kitchen account when requested', async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: 'manager-1', role: 'manager', restaurantId: 'restaurant-1' })
+      .mockResolvedValueOnce(null);
+    prisma.user.create.mockResolvedValue({
+      id: 'kitchen-1',
+      name: 'Bếp A',
+      email: 'kitchen@example.com',
+      role: 'kitchen',
+      restaurantId: 'restaurant-1',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.create('manager-1', {
+      name: 'Bếp A',
+      email: 'kitchen@example.com',
+      password: '123456',
+      role: 'kitchen',
+    } as any);
+
+    expect(result.role).toBe('kitchen');
+    expect(prisma.user.create).toHaveBeenCalled();
+  });
+
   it('rejects non-owner/non-manager requests', async () => {
     prisma.user.findUnique.mockResolvedValueOnce({ id: 'user-1', role: 'customer', restaurantId: null });
 

@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-export type OrderStatus = "pending" | "ready" | "delivered" | "completed" | "payment_requested"
+export type OrderStatus = "pending" | "staffConfirmed" | "preparing" | "ready" | "served" | "completed" | "cancelled" | "payment_requested"
 
 export interface Topping {
   id: string
@@ -95,7 +95,7 @@ const mockOrders: Order[] = [
         selectedToppings: [{ id: "t2", name: "Thêm thịt", price: 15000 }],
       },
     ],
-    status: "delivered",
+    status: "served",
     createdAt: new Date(Date.now() - 25 * 60000),
     updatedAt: new Date(Date.now() - 10 * 60000),
     assignedTo: "NV01",

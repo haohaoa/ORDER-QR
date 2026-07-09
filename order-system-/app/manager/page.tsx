@@ -101,6 +101,7 @@ export default function ManagerPage() {
   const [staffFormPassword, setStaffFormPassword] = useState("")
   const [staffFormPhone, setStaffFormPhone] = useState("")
   const [staffFormAddress, setStaffFormAddress] = useState("")
+  const [staffFormRole, setStaffFormRole] = useState("service")
   const [isCreatingStaffAccount, setIsCreatingStaffAccount] = useState(false)
   const [isDeletingStaffAccount, setIsDeletingStaffAccount] = useState(false)
   const [deletingStaffAccountId, setDeletingStaffAccountId] = useState<string | null>(null)
@@ -290,6 +291,7 @@ export default function ManagerPage() {
         password: staffFormPassword,
         phone: staffFormPhone.trim() || undefined,
         address: staffFormAddress.trim() || undefined,
+        role: staffFormRole,
       })
       setStaffAccounts((prev) => [created, ...prev])
       setStaffAccountSuccess(created.message || "Tài khoản nhân viên đã được tạo thành công")
@@ -298,6 +300,7 @@ export default function ManagerPage() {
       setStaffFormPassword("")
       setStaffFormPhone("")
       setStaffFormAddress("")
+      setStaffFormRole("service")
     } catch (error: any) {
       setStaffAccountError(error?.message || "Không thể tạo tài khoản nhân viên")
     } finally {
@@ -1574,6 +1577,18 @@ export default function ManagerPage() {
                       className="h-11 rounded-xl"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-role">Vai trò</Label>
+                    <select
+                      id="staff-role"
+                      value={staffFormRole}
+                      onChange={(e) => setStaffFormRole(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none"
+                    >
+                      <option value="service">Nhân viên phục vụ</option>
+                      <option value="kitchen">Nhân viên bếp</option>
+                    </select>
+                  </div>
                   <div className="md:col-span-2 space-y-2">
                     <Label htmlFor="staff-address">Địa chỉ</Label>
                     <Textarea
@@ -1618,7 +1633,7 @@ export default function ManagerPage() {
                         <div className="text-left md:text-right">
                         <div className="flex items-center gap-2 md:justify-end">
                           <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                            {account.role || "service"}
+                            {account.role === "kitchen" ? "bếp" : "phục vụ"}
                           </Badge>
                           <Button
                             type="button"

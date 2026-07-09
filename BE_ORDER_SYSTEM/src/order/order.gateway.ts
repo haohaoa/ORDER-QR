@@ -120,4 +120,19 @@ export class OrderGateway {
       `Emit order-updated -> restaurant:${order.restaurantId}`,
     );
   }
+
+  /**
+   * Gửi khi món được xác nhận
+   */
+  emitOrderItemConfirmed(data: any) {
+    if (!data?.restaurantId) return;
+
+    this.server
+      .to(`restaurant:${data.restaurantId}`)
+      .emit('order-item-confirmed', data);
+
+    console.log(
+      `Emit order-item-confirmed -> restaurant:${data.restaurantId}`,
+    );
+  }
 }

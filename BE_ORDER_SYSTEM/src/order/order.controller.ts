@@ -37,6 +37,14 @@ export class OrderController {
     return this.orderService.findByQrCode(qrCode);
   }
 
+  @Get('kitchen-queue')
+  @Roles(UserRole.admin, UserRole.manager, UserRole.kitchen)
+  getKitchenQueue(@Request() req: any) {
+    const restaurantId = req.user?.restaurantId;
+    const isAdmin = req.user?.role === UserRole.admin;
+    return this.orderService.findKitchenQueue(isAdmin ? undefined : restaurantId);
+  }
+
   @Get(':id')
   @Roles(UserRole.admin, UserRole.manager, UserRole.service, UserRole.kitchen, UserRole.customer)
   findOne(@Param('id') id: string) {
@@ -65,6 +73,20 @@ export class OrderController {
   @Patch(':id/items/:itemId')
   updateOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { quantity?: number; note?: string }) {
     return this.orderService.updateOrderItem(id, itemId, body);
+  }
+
+  @Patch(':id/items/:itemId/status')
+  @Roles(UserRole.service, UserRole.kitchen, UserRole.manager, UserRole.admin)
+  updateItemStatus(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: { status: string }, @Request() req: any) {
+    const userId = req.user?.id;
+    return this.orderService.setOrderItemStatus(id, itemId, body.status, userId);
+  }
+
+  @Patch(':id/items/:itemId/confirm')
+  @Roles(UserRole.service, UserRole.kitchen)
+  confirmOrderItem(@Param('id') id: string, @Param('itemId') itemId: string, @Request() req: any) {
+    const userId = req.user?.id;
+    return this.orderService.confirmOrderItem(id, itemId, userId);
   }
 
   @Public()

@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -45,17 +46,20 @@ enum TableStatus {
 
 enum OrderStatus {
   pending
+  staffConfirmed
   preparing
   ready
-  delivered
+  served
   completed
   cancelled
 }
 
 enum OrderItemStatus {
   pending
+  staffConfirmed
   preparing
-  done
+  ready
+  served
   cancelled
 }
 
@@ -190,6 +194,8 @@ model OrderItem {
   quantity   Int             @default(1)
   note       String?
   status     OrderItemStatus @default(pending)
+  confirmedBy String?
+  confirmedAt DateTime?
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)

@@ -1,248 +1,302 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useRequireRole } from "@/lib/useAuth"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChefHat, Clock, CheckCircle2, XCircle, Coffee, UtensilsCrossed } from "lucide-react"
-import { useStore } from "@/lib/store"
-import { getTimeSince } from "@/lib/format"
-import { AppHeader } from "@/components/app-header"
-import type { Order } from "@/lib/types"
-import { StatusBadge } from "@/components/status-badge"
+import { ChefHat, Check, X, LogOut, UtensilsCrossed, Coffee } from "lucide-react"
+import { confirmOrderItem, getKitchenQueue, updateOrderItemStatusByApi } from "@/lib/api"
 import Image from "next/image"
+
+type ItemStatus = "pending" | "staffConfirmed" | "preparing" | "ready" | "served" | "completed" | "cancelled"
+type FilterTab = "all" | "food" | "drink"
+
+type KitchenOrderItem = {
+  id: string
+  name: string
+  quantity: number
+  status?: string | null
+  category?: string
+  notes?: string | null
+  image?: string
+  selectedSize?: { name?: string }
+  selectedToppings?: Array<{ name: string }>
+  menuItem?: { images?: Array<{ image?: string }> }
+}
+
+type KitchenOrder = {
+  id: string
+  tableNumber?: string
+  table?: { name?: string; number?: string }
+  status: string
+  createdAt: string | Date
+  items: KitchenOrderItem[]
+}
+
+const DRINK_CATEGORIES = ["Đồ uống", "Nước"]
+
+function getElapsedMinutes(createdAt: string | Date, now: Date) {
+  const created = new Date(createdAt).getTime()
+  return Math.max(0, Math.floor((now.getTime() - created) / 60000))
+}
 
 export default function KitchenPage() {
   useRequireRole(["kitchen", "manager", "admin"])
-  const { updateOrderItemStatus, getOrdersByStatus } = useStore()
-  const [currentTime, setCurrentTime] = useState(new Date())
-  const [cancelingItem, setCancelingItem] = useState<{ order: Order; item:any; itemIndex: number } | null>(null)
+  const router = useRouter()
+  const [now, setNow] = useState(new Date())
+  const [kitchenOrders, setKitchenOrders] = useState<KitchenOrder[]>([])
+  const [cancelingItem, setCancelingItem] = useState<{ order: KitchenOrder; item: KitchenOrderItem } | null>(null)
   const [cancelReason, setCancelReason] = useState("")
-  const [filterTab, setFilterTab] = useState<"all" | "food" | "drink">("all")
+  const [filterTab, setFilterTab] = useState<FilterTab>("all")
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 30000)
+    const interval = setInterval(() => setNow(new Date()), 15000)
     return () => clearInterval(interval)
   }, [])
 
-  const pendingOrders = getOrdersByStatus("pending")
-  const preparingOrders = getOrdersByStatus("preparing")
-
-  const filterOrderItems = (orders: Order[]) => {
-    if (filterTab === "all") return orders
-
-    return orders
-      .map((order) => ({
-        ...order,
-        items: order.items.filter((item) => {
-          if (filterTab === "food") {
-            return item.category !== "Đồ uống" && item.category !== "Nước"
-          } else {
-            return item.category === "Đồ uống" || item.category === "Nước"
-          }
-        }),
+  const loadKitchenQueue = async () => {
+    try {
+      const data = await getKitchenQueue()
+      const mappedOrders = (data || []).map((order: any) => ({
+        id: order.id,
+        table: order.table,
+        tableNumber: order.table?.name || order.table?.number || order.tableNumber,
+        status: order.status,
+        createdAt: order.createdAt,
+        items: (order.items || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity || 1,
+          status: item.status,
+          category: item.category,
+          notes: item.note,
+          image: item.menuItem?.images?.[0]?.image || item.image,
+          selectedSize: item.selectedSize,
+          selectedToppings: item.selectedToppings || [],
+          menuItem: item.menuItem,
+        })),
       }))
-      .filter((order) => order.items.length > 0)
-  }
-
-  const filteredPending = filterOrderItems(pendingOrders)
-  const filteredPreparing = filterOrderItems(preparingOrders)
-
-  const handleAcceptItem = (orderId: string, itemIndex: number) => {
-    updateOrderItemStatus(orderId, itemIndex, "preparing")
-  }
-
-  const handleCompleteItem = (orderId: string, itemIndex: number) => {
-    updateOrderItemStatus(orderId, itemIndex, "ready")
-  }
-
-  const handleCancelItem = () => {
-    if (cancelingItem && cancelReason) {
-      updateOrderItemStatus(cancelingItem.order.id, cancelingItem.itemIndex, "cancelled", cancelReason)
-      setCancelingItem(null)
-      setCancelReason("")
+      setKitchenOrders(mappedOrders)
+    } catch (error) {
+      console.error("Failed to load kitchen queue", error)
+      setKitchenOrders([])
     }
   }
 
-  const OrderCard = ({ order, showAccept }: { order: Order; showAccept: boolean }) => (
-    <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-3 space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="default" className="text-sm font-bold">
-                Bàn {order.tableNumber}
-              </Badge>
-              <StatusBadge status={order.status} />
-            </div>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {getTimeSince(order.createdAt)}
-            </p>
-          </div>
-          <span className="text-xs font-mono text-gray-400">#{order.id}</span>
-        </div>
+  useEffect(() => {
+    void loadKitchenQueue()
+  }, [])
 
-        <div className="space-y-2">
-          {order.items.map((item, index) => {
-            const itemStatus = item.status || order.status
-            if (itemStatus === "cancelled") return null
+  const activeOrders = useMemo(() => {
+    return [...kitchenOrders].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    )
+  }, [kitchenOrders])
 
-            return (
-              <div key={index} className="rounded-lg border-2 border-gray-200 bg-white p-2 space-y-2">
-                <div className="flex items-start gap-2">
-                  <div className="relative h-14 w-14 shrink-0 rounded-lg overflow-hidden">
-                    <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm text-gray-900">{item.name}</p>
-                      <Badge variant="secondary" className="text-sm font-bold shrink-0">
-                        x{item.quantity}
-                      </Badge>
-                    </div>
-                    {item.selectedSize && (
-                      <p className="text-xs text-gray-600 mt-0.5">Size: {item.selectedSize.name}</p>
-                    )}
-                    {item.selectedToppings.length > 0 && (
-                      <p className="text-xs text-gray-600 mt-0.5">
-                        + {item.selectedToppings.map((t) => t.name).join(", ")}
-                      </p>
-                    )}
-                    {item.notes && <p className="text-xs text-amber-600 mt-0.5 font-medium">📝 {item.notes}</p>}
-                  </div>
-                </div>
+  const matchesFilter = (category: string) => {
+    if (filterTab === "all") return true
+    const isDrink = DRINK_CATEGORIES.includes(category)
+    return filterTab === "drink" ? isDrink : !isDrink
+  }
 
-                <div className="flex gap-2">
-                  {itemStatus === "pending" ? (
-                    <>
-                      <Button
-                        className="flex-1 h-8 text-xs"
-                        size="sm"
-                        onClick={() => handleAcceptItem(order.id, index)}
-                      >
-                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                        Nhận
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-2 border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
-                        onClick={() => setCancelingItem({ order, item, itemIndex: index })}
-                      >
-                        <XCircle className="h-3 w-3" />
-                      </Button>
-                    </>
-                  ) : itemStatus === "preparing" ? (
-                    <Button
-                      className="w-full h-8 text-xs"
-                      size="sm"
-                      onClick={() => handleCompleteItem(order.id, index)}
-                    >
-                      <CheckCircle2 className="mr-1 h-3 w-3" />
-                      Hoàn thành
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
+  // A table only disappears once every item in it is ready/served/completed or cancelled.
+  const visibleOrders = activeOrders.filter((order) =>
+    order.items.some((item) => {
+      const status = (item.status || order.status) as ItemStatus
+      return status !== "cancelled" && status !== "ready" && status !== "served" && status !== "completed" && matchesFilter(item.category || "")
+    }),
   )
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <AppHeader
-        title="Bếp"
-        subtitle={`${filteredPending.reduce((s, o) => s + o.items.length, 0)} món chờ • ${filteredPreparing.reduce((s, o) => s + o.items.length, 0)} đang làm`}
-        actions={
-          <Badge variant="outline" className="text-xs">
-            {currentTime.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-          </Badge>
-        }
-      />
+  // Tapping an item only ever changes THAT item. Everything else in the
+  // table stays exactly as it was.
+  const handleAccept = async (orderId: string, itemId: string) => {
+    await confirmOrderItem(orderId, itemId)
+    await loadKitchenQueue()
+  }
 
-      <div className="border-b bg-white shadow-sm sticky top-16 z-40">
-        <div className="container mx-auto px-4">
-          <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as any)} className="w-full">
-            <TabsList className="w-full justify-start h-12 bg-transparent border-b rounded-none p-0">
-              <TabsTrigger
-                value="all"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-emerald-600 rounded-none h-12 gap-2"
-              >
-                <UtensilsCrossed className="h-4 w-4" />
-                Tất cả
-              </TabsTrigger>
-              <TabsTrigger
-                value="food"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-emerald-600 rounded-none h-12 gap-2"
-              >
-                <ChefHat className="h-4 w-4" />
-                Món ăn
-              </TabsTrigger>
-              <TabsTrigger
-                value="drink"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-emerald-600 rounded-none h-12 gap-2"
-              >
-                <Coffee className="h-4 w-4" />
-                Đồ uống
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+  const handleComplete = async (orderId: string, itemId: string) => {
+    await updateOrderItemStatusByApi(orderId, itemId, "served")
+    await loadKitchenQueue()
+  }
+
+  const handleCancelItem = async () => {
+    if (cancelingItem && cancelReason) {
+      await updateOrderItemStatusByApi(cancelingItem.order.id, cancelingItem.item.id, "cancelled")
+      setCancelingItem(null)
+      setCancelReason("")
+      await loadKitchenQueue()
+    }
+  }
+
+  const handleLogout = () => {
+    router.push("auth/login")
+  }
+
+  const TableCard = ({ order }: { order: KitchenOrder }) => {
+    const items: Array<{ item: KitchenOrderItem; index: number; status: ItemStatus }> = order.items
+      .map((item, index) => ({ item, index, status: (item.status || order.status) as ItemStatus }))
+      .filter(({ status, item }) => status !== "cancelled" && status !== "ready" && status !== "served" && status !== "completed" && matchesFilter(item.category || ""))
+
+    const minutes = getElapsedMinutes(order.createdAt, now)
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white">
+        {/* Quiet header: table name (small) + time only */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+          <span className="text-sm font-medium text-gray-600">Bàn {order.tableNumber || order.table?.name || order.table?.number}</span>
+          <span className="text-xs text-gray-400">{minutes} phút</span>
+        </div>
+
+        <div className="space-y-2 p-2">
+          {items.map(({ item, index, status }) => (
+            <div key={index} className="flex items-stretch gap-2">
+              {status === "ready" || status === "served" || status === "completed" ? (
+                // Completed: quiet, low-emphasis, non-interactive
+                <div className="flex flex-1 items-center gap-3 rounded-md border border-gray-100 bg-gray-50 p-2 opacity-50">
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md">
+                    <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-500 line-through">{item.name}</p>
+                  </div>
+                  <Check className="h-4 w-4 shrink-0 text-gray-400" />
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => status === "pending" && handleAccept(order.id, item.id)}
+                    className={`flex flex-1 items-center gap-3 rounded-md border p-2 text-left transition-colors ${status === "preparing"
+                      ? "border-2 border-amber-400 bg-white"
+                      : "border-gray-200 bg-white active:bg-gray-50"
+                      }`}
+                  >
+                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md">
+                      <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-gray-900">{item.name}</p>
+                        <span className="shrink-0 text-xs font-bold text-gray-500">x{item.quantity}</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${status === "preparing"
+                            ? "bg-amber-100 text-amber-700"
+                            : status === "staffConfirmed"
+                              ? "bg-blue-100 text-blue-700"
+                              : status === "pending"
+                                ? "bg-slate-100 text-slate-600"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                        >
+                          {status === "preparing"
+                            ? "Đang làm"
+                            : status === "staffConfirmed"
+                              ? "Đã xác nhận"
+                              : status === "pending"
+                                ? "Chờ xác nhận"
+                                : "Đã hoàn tất"}
+                        </span>
+                      </div>
+                      {item.selectedSize && (
+                        <p className="text-xs text-gray-500">Size: {item.selectedSize.name}</p>
+                      )}
+                      {(item.selectedToppings?.length ?? 0) > 0 && (
+                        <p className="truncate text-xs text-gray-500">
+                          + {(item.selectedToppings ?? []).map((t: any) => t.name).join(", ")}
+                        </p>
+                      )}
+                      {item.notes && <p className="truncate text-xs font-medium text-amber-600">📝 {item.notes}</p>}
+                    </div>
+                  </button>
+
+                  {status === "staffConfirmed" ? (
+                    <Button
+                      size="sm"
+                      className="h-auto shrink-0 bg-blue-600 px-3 text-xs font-semibold hover:bg-blue-700"
+                      onClick={() => handleAccept(order.id, item.id)}
+                    >
+                      Nhận món
+                    </Button>
+                  ) : status === "preparing" ? (
+                    <Button
+                      size="sm"
+                      className="h-auto shrink-0 bg-amber-500 px-3 text-xs font-semibold hover:bg-amber-600"
+                      onClick={() => handleComplete(order.id, item.id)}
+                    >
+                      Xong món
+                    </Button>
+                  ) : null}
+
+                  <button
+                    onClick={() => setCancelingItem({ order, item })}
+                    className="flex w-9 shrink-0 items-center justify-center rounded-md border border-gray-200 text-gray-400 active:bg-gray-50"
+                    aria-label="Hủy món"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-6">
+      {/* Minimal top bar: just "Bếp" and logout */}
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b bg-white px-4 py-3">
+        <span className="text-base font-semibold text-gray-900">Bếp</span>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-gray-500 active:bg-gray-100"
+        >
+          <LogOut className="h-4 w-4" />
+          Đăng xuất
+        </button>
+      </div>
+
+      {/* Filter switch */}
+      <div className="sticky top-[52px] z-30 border-b bg-white px-3 py-2">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1">
+          {(
+            [
+              { key: "all", label: "Tất cả", icon: UtensilsCrossed },
+              { key: "food", label: "Món ăn", icon: ChefHat },
+              { key: "drink", label: "Đồ uống", icon: Coffee },
+            ] as const
+          ).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setFilterTab(key)}
+              className={`flex h-9 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors ${filterTab === key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-4">
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Pending Orders */}
-          <div>
-            <h2 className="mb-3 text-sm font-semibold flex items-center gap-2 text-gray-900">
-              <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-              Đơn mới ({filteredPending.reduce((sum, o) => sum + o.items.length, 0)} món)
-            </h2>
-            <div className="space-y-3">
-              {filteredPending.length === 0 ? (
-                <Card className="border-gray-200">
-                  <CardContent className="p-6 text-center">
-                    <ChefHat className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">Không có món mới</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredPending.map((order) => <OrderCard key={order.id} order={order} showAccept={true} />)
-              )}
-            </div>
+      <div className="px-3 pt-3">
+        {visibleOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white py-16">
+            <ChefHat className="mb-2 h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-400">Không có món nào đang chờ</p>
           </div>
-
-          {/* Preparing Orders */}
-          <div>
-            <h2 className="mb-3 text-sm font-semibold flex items-center gap-2 text-gray-900">
-              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              Đang làm ({filteredPreparing.reduce((sum, o) => sum + o.items.length, 0)} món)
-            </h2>
-            <div className="space-y-3">
-              {filteredPreparing.length === 0 ? (
-                <Card className="border-gray-200">
-                  <CardContent className="p-6 text-center">
-                    <Clock className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">Chưa có món đang làm</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredPreparing.map((order) => <OrderCard key={order.id} order={order} showAccept={false} />)
-              )}
-            </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleOrders.map((order) => (
+              <TableCard key={order.id} order={order} />
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
       <Dialog open={cancelingItem !== null} onOpenChange={(open) => !open && setCancelingItem(null)}>
@@ -251,27 +305,17 @@ export default function KitchenPage() {
             <DialogTitle className="text-base">Hủy món: {cancelingItem?.item.name}</DialogTitle>
           </DialogHeader>
           <div className="py-3">
-            <p className="text-xs text-gray-600 mb-3">Vui lòng chọn lý do hủy:</p>
+            <p className="mb-3 text-xs text-gray-600">Vui lòng chọn lý do hủy:</p>
             <RadioGroup value={cancelReason} onValueChange={setCancelReason}>
               <div className="space-y-2">
-                <div className="flex items-center space-x-2 border rounded-lg p-2 bg-gray-50">
-                  <RadioGroupItem value="Hết món" id="out-of-stock" />
-                  <Label htmlFor="out-of-stock" className="cursor-pointer flex-1 text-sm">
-                    Hết món
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-2 bg-gray-50">
-                  <RadioGroupItem value="Nguyên liệu không đủ" id="no-ingredients" />
-                  <Label htmlFor="no-ingredients" className="cursor-pointer flex-1 text-sm">
-                    Nguyên liệu không đủ
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-2 bg-gray-50">
-                  <RadioGroupItem value="Lỗi hệ thống" id="system-error" />
-                  <Label htmlFor="system-error" className="cursor-pointer flex-1 text-sm">
-                    Lỗi hệ thống
-                  </Label>
-                </div>
+                {["Hết món", "Nguyên liệu không đủ", "Lỗi hệ thống"].map((reason) => (
+                  <div key={reason} className="flex items-center space-x-2 rounded-lg border bg-gray-50 p-3">
+                    <RadioGroupItem value={reason} id={reason} />
+                    <Label htmlFor={reason} className="flex-1 cursor-pointer text-sm">
+                      {reason}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </RadioGroup>
           </div>

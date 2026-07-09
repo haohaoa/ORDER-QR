@@ -35,6 +35,7 @@
  */
  
 import { useEffect, useMemo, useState, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { io, type Socket } from "socket.io-client"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -44,6 +45,7 @@ import {
   updateOrder,
   updateOrderItem,
   deleteOrderItem,
+  confirmOrderItem,
 } from "@/lib/api"
 import {
   Check,
@@ -57,6 +59,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react"
  
 // ---------- Kiểu dữ liệu ----------
@@ -123,7 +126,7 @@ type ApiOrder = {
   items?: ApiOrderItem[]
 }
  
-const ACTIVE_ORDER_STATUSES = ["pending", "preparing", "ready", "delivered"]
+const ACTIVE_ORDER_STATUSES = ["pending", "staffConfirmed", "preparing", "ready", "served"]
 const POLL_INTERVAL_MS = 15000
 const URGENT_AFTER_MS = 2 * 60 * 1000 // Quá 2 phút chưa xác nhận -> cảnh báo khẩn
 const TOAST_LIFETIME_MS = 15000
@@ -222,8 +225,16 @@ function itemStatusLabel(status?: string) {
       return "Chờ xác nhận"
     case "preparing":
       return "Đang làm"
-    case "done":
-      return "Xong"
+    case "staffConfirmed":
+      return "Đã xác nhận"
+    case "preparing":
+      return "Đang làm"
+    case "ready":
+      return "Sẵn sàng"
+    case "served":
+      return "Đã phục vụ"
+    case "completed":
+      return "Đã thanh toán"
     case "cancelled":
       return "Đã hủy"
     default:
@@ -248,6 +259,7 @@ export default function TablesPage() {
   const [isLoadingTables, setIsLoadingTables] = useState(true)
   const [tableError, setTableError] = useState<string | null>(null)
   const [isSyncingOrders, setIsSyncingOrders] = useState(false)
+  const router = useRouter()
  
   // ----- Thông báo gọi món (dạng danh sách, không tự bung sheet) -----
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([])
@@ -597,7 +609,13 @@ export default function TablesPage() {
   function backToList() {
     setReviewId(null)
   }
- 
+
+  // Đăng xuất
+  function handleLogout() {
+    const { clearAuth } = require("@/lib/auth")
+    clearAuth()
+    router.push("/auth/login")
+  }
   async function changePendingQuantity(item: MenuItem, delta: number) {
     const newQty = item.quantity + delta
     try {
@@ -622,6 +640,18 @@ export default function TablesPage() {
       await syncOrders()
     } catch (error) {
       console.error("Failed to remove pending item", error)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function confirmItem(item: MenuItem) {
+    try {
+      setActionLoading(true)
+      await confirmOrderItem(item.orderId, item.id)
+      await syncOrders()
+    } catch (error) {
+      console.error("Failed to confirm item", error)
     } finally {
       setActionLoading(false)
     }
@@ -714,8 +744,17 @@ export default function TablesPage() {
         .animate-toast-in { animation: toastSlideIn 0.25s ease-out; }
       `}</style>
  
-      {/* ---------- Chuông thông báo (góc màn hình) ---------- */}
-      <div className="fixed right-3 top-3 z-40 sm:right-5 sm:top-5">
+      {/* ---------- Chuông thông báo (góc màn hình) + Đăng xuất ---------- */}
+      <div className="fixed right-3 top-3 z-40 flex gap-2 sm:right-5 sm:top-5">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 active:scale-95 text-gray-600 hover:text-red-600"
+          aria-label="Đăng xuất"
+          title="Đăng xuất"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
         <button
           type="button"
           onClick={async () => {
@@ -1003,12 +1042,22 @@ export default function TablesPage() {
  
                         {editable ? (
                           <>
-                            <div className="flex items-center gap-2 rounded-full bg-gray-100 px-1 py-1">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={actionLoading}
+                                onClick={() => confirmItem(item)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 shadow-sm active:scale-90 disabled:opacity-50"
+                                aria-label="Xác nhận món"
+                                title="Xác nhận"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
                               <button
                                 type="button"
                                 disabled={actionLoading}
                                 onClick={() => changeQuantity(item, -1)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
                                 aria-label="Giảm số lượng"
                               >
                                 <Minus className="h-4 w-4" />
@@ -1020,7 +1069,7 @@ export default function TablesPage() {
                                 type="button"
                                 disabled={actionLoading}
                                 onClick={() => changeQuantity(item, 1)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
                                 aria-label="Tăng số lượng"
                               >
                                 <Plus className="h-4 w-4" />
@@ -1212,41 +1261,63 @@ export default function TablesPage() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium text-gray-900">{item.name}</p>
                             <p className="text-sm text-gray-500">{formatVND(item.price)} / món</p>
+                            {item.status && (
+                              <Badge variant="secondary" className="mt-1 text-[10px]">
+                                {itemStatusLabel(item.status)}
+                              </Badge>
+                            )}
                           </div>
  
-                          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-1 py-1">
-                            <button
-                              type="button"
-                              disabled={actionLoading}
-                              onClick={() => changePendingQuantity(item, -1)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
-                              aria-label="Giảm số lượng"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
-                            <span className="w-5 text-center text-sm font-semibold text-gray-900">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={actionLoading}
-                              onClick={() => changePendingQuantity(item, 1)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
-                              aria-label="Tăng số lượng"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
- 
-                          <button
-                            type="button"
-                            disabled={actionLoading}
-                            onClick={() => requestDeleteItem(item, "pending")}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
-                            aria-label={`Xóa ${item.name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {item.status === "pending" ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={actionLoading}
+                                onClick={() => confirmItem(item)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 shadow-sm active:scale-90 disabled:opacity-50"
+                                aria-label="Xác nhận món"
+                                title="Xác nhận"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <div className="flex items-center gap-1.5 rounded-full bg-gray-100 px-1 py-1">
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={() => changePendingQuantity(item, -1)}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
+                                  aria-label="Giảm số lượng"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+                                <span className="w-5 text-center text-sm font-semibold text-gray-900">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={() => changePendingQuantity(item, 1)}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-700 shadow-sm active:scale-90 disabled:opacity-50"
+                                  aria-label="Tăng số lượng"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={actionLoading}
+                                onClick={() => requestDeleteItem(item, "pending")}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
+                                aria-label={`Xóa ${item.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Badge className="shrink-0 rounded-full text-sm font-bold bg-green-600 text-white">
+                              x{item.quantity}
+                            </Badge>
+                          )}
                         </li>
                       ))}
                     </ul>

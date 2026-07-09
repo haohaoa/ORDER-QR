@@ -1,4 +1,4 @@
-export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "completed" | "cancelled"
+export type OrderStatus = "pending" | "staffConfirmed" | "preparing" | "ready" | "served" | "completed" | "cancelled"
 
 
 export type UserRole = "customer" | "kitchen" | "service" | "manager" | "admin"

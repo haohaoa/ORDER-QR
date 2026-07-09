@@ -10,9 +10,12 @@ const statusConfig: Record<
   { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
 > = {
   pending: { label: "Đang chờ", variant: "secondary" },
+  staffConfirmed: { label: "Đã xác nhận", variant: "default" },
+  preparing: { label: "Đang làm", variant: "outline" },
   ready: { label: "Sẵn sàng", variant: "default" },
-  delivered: { label: "Đang giao", variant: "outline" },
-  completed: { label: "Hoàn thành", variant: "secondary" },
+  served: { label: "Đã phục vụ", variant: "outline" },
+  completed: { label: "Đã thanh toán", variant: "secondary" },
+  cancelled: { label: "Đã hủy", variant: "destructive" },
   payment_requested: { label: "Chờ thanh toán", variant: "destructive" },
 }
 

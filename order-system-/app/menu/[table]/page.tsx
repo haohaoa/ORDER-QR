@@ -456,8 +456,10 @@ export default function MenuPage({ params }: Props) {
         return <ChefHat className="h-4 w-4" />
       case "ready":
         return <CheckCircle2 className="h-4 w-4" />
-      case "delivered":
+      case "served":
         return <Truck className="h-4 w-4" />
+      case "completed":
+        return <CheckCircle2 className="h-4 w-4" />
       case "cancelled":
         return <XCircle className="h-4 w-4 text-red-500" />
       default:

@@ -19,6 +19,10 @@ export class CreateStaffAccountDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
 export class UpdateStaffAccountDto {

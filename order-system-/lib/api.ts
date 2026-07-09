@@ -117,7 +117,7 @@ export async function updateCategory(id: string, payload: { name?: string; sortO
 }
 
 export async function createOrderByQrCode(qrCode: string, payload: {
-  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'completed' | 'cancelled'
+  status: 'pending' | 'staffConfirmed' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled'
   totalAmount: number
   items?: Array<{
     menuItemId: string
@@ -126,7 +126,7 @@ export async function createOrderByQrCode(qrCode: string, payload: {
     quantity: number
     note?: string
     details?: any
-    status: 'pending' | 'preparing' | 'done' | 'cancelled'
+    status: 'pending' | 'staffConfirmed' | 'preparing' | 'ready' | 'served' | 'cancelled'
   }>
 }) {
   const res = await fetch(`${API_BASE_URL}/orders/by-qrcode/${encodeURIComponent(qrCode)}`, {
@@ -163,8 +163,19 @@ export async function getOrders() {
   return res.json()
 }
 
+export async function getKitchenQueue() {
+  const res = await fetch(`${API_BASE_URL}/orders/kitchen-queue`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Get kitchen queue failed: ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function updateOrder(id: string, payload: {
-  status?: 'pending' | 'preparing' | 'ready' | 'delivered' | 'completed' | 'cancelled'
+  status?: 'pending' | 'staffConfirmed' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled'
   totalAmount?: number
   tableId?: string
 }) {
@@ -201,6 +212,32 @@ export async function deleteOrderItem(orderId: string, itemId: string) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.message || `Delete order item failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function confirmOrderItem(orderId: string, itemId: string) {
+  const res = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/confirm`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({}),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Confirm order item failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function updateOrderItemStatusByApi(orderId: string, itemId: string, status: 'staffConfirmed' | 'preparing' | 'ready' | 'served' | 'cancelled') {
+  const res = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/status`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Update order item status failed: ${res.status}`)
   }
   return res.json()
 }
@@ -252,7 +289,7 @@ export async function getStaffAccounts() {
   return res.json()
 }
 
-export async function createStaffAccount(payload: { name: string; email: string; password: string; phone?: string; address?: string }) {
+export async function createStaffAccount(payload: { name: string; email: string; password: string; phone?: string; address?: string; role?: string }) {
   const res = await fetch(`${API_BASE_URL}/staff-accounts`, {
     method: 'POST',
     headers: getAuthHeaders(),

@@ -12,25 +12,35 @@ const statusConfig = {
     icon: Clock,
     className: "bg-[var(--status-pending)] text-black",
   },
+  staffConfirmed: {
+    label: "Đã xác nhận",
+    icon: CheckCircle2,
+    className: "bg-blue-100 text-blue-700",
+  },
   preparing: {
     label: "Đang làm",
     icon: ChefHat,
     className: "bg-[var(--status-preparing)] text-white",
   },
   ready: {
-    label: "Đã xong",
+    label: "Sẵn sàng",
     icon: CheckCircle2,
     className: "bg-[var(--status-ready)] text-black",
   },
-  delivered: {
-    label: "Đã mang",
+  served: {
+    label: "Đã phục vụ",
     icon: Truck,
-    className: "bg-[var(--status-delivered)] text-black",
+    className: "bg-[var(--status-ready)] text-black",
   },
   completed: {
-    label: "Hoàn thành",
+    label: "Đã thanh toán",
     icon: CheckCircle2,
     className: "bg-accent text-accent-foreground",
+  },
+  cancelled: {
+    label: "Đã hủy",
+    icon: CheckCircle2,
+    className: "bg-red-100 text-red-700",
   },
 }
 

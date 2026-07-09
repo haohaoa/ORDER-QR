@@ -15,7 +15,7 @@ export class StaffAccountService {
   }
 
   private canManageRestaurant(role?: string | null) {
-    return ['manager','admin'].includes((role ?? '').toLowerCase());
+    return ['manager', 'admin', 'owner'].includes((role ?? '').toLowerCase());
   }
 
   async create(userId: string, createStaffAccountDto: CreateStaffAccountDto) {
@@ -41,6 +41,10 @@ export class StaffAccountService {
       throw new ConflictException('Email này đã được sử dụng');
     }
 
+    const requestedRole = (createStaffAccountDto.role ?? 'service').toLowerCase();
+    const allowedRoles = ['service', 'kitchen'];
+    const normalizedRole = allowedRoles.includes(requestedRole) ? requestedRole : 'service';
+
     const hashedPassword = await bcrypt.hash(createStaffAccountDto.password, 10);
 
     const createdUser = await (this.prisma.user.create as any)({
@@ -50,7 +54,7 @@ export class StaffAccountService {
         password: hashedPassword,
         phone: createStaffAccountDto.phone,
         address: createStaffAccountDto.address,
-        role: 'service',
+        role: normalizedRole,
         restaurantId: actor.restaurantId,
         status: 'active',
       },
@@ -103,7 +107,7 @@ export class StaffAccountService {
     const staffAccounts = await (this.prisma.user.findMany as any)({
       where: {
         restaurantId: actor.restaurantId,
-        role: 'service',
+        role: { in: ['service', 'kitchen'] },
       },
       select: {
         id: true,
@@ -164,8 +168,8 @@ export class StaffAccountService {
       throw new NotFoundException('Không tìm thấy tài khoản nhân viên');
     }
 
-    if (targetUser.role !== 'service') {
-      throw new ForbiddenException('Chỉ có thể xóa tài khoản nhân viên');
+    if (!['service', 'kitchen'].includes((targetUser.role ?? '').toLowerCase())) {
+      throw new ForbiddenException('Chỉ có thể xóa tài khoản nhân viên hoặc bếp');
     }
 
     if (targetUser.restaurantId !== actor.restaurantId) {

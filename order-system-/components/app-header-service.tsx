@@ -20,8 +20,8 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
 
   // Calculate notifications
   const readyCount = getOrdersByStatus("ready").length
-  const deliveredCount = getOrdersByStatus("delivered").length
-  const serviceNotifications = readyCount + deliveredCount
+  const servedCount = getOrdersByStatus("served").length
+  const serviceNotifications = readyCount + servedCount
 
   const tables = getTables()
   const paymentNotifications = tables.filter((tableNumber:any) => {
